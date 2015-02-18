@@ -28,8 +28,8 @@ import java.util.Map;
 import javax.jcr.RepositoryException;
 import javax.servlet.ServletException;
 
-import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
-import com.adobe.communities.ugc.migration.export.UGCExportHelper;
+//import com.adobe.communities.ugc.migration.legacyExport.ContentTypeDefinitions;
+//import com.adobe.communities.ugc.migration.legacyExport.UGCExportHelper;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;

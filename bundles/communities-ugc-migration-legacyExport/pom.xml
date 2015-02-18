@@ -24,7 +24,7 @@
     <!-- P R O J E C T  D E S C R I P T I O N                                   -->
     <!-- ====================================================================== -->
     <groupId>com.adobe.communities</groupId>
-    <artifactId>communities-ugc-migration</artifactId>
+    <artifactId>communities-ugc-migration-legacyExport</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>bundle</packaging>
     <name>AEM Social Communities UGC Migration - Bundle</name>
@@ -122,31 +122,13 @@
         <dependency>
             <groupId>com.adobe.cq.social</groupId>
             <artifactId>cq-social-commons</artifactId>
-            <version>1.5.61</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.adobe.cq.social</groupId>
-            <artifactId>cq-social-ugcbase</artifactId>
-            <version>2.0.63</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.adobe.cq.social</groupId>
-            <artifactId>cq-social-as-provider</artifactId>
-            <version>1.1.79</version>
+            <version>1.4.144</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.adobe.cq.social</groupId>
             <artifactId>cq-social-forum</artifactId>
-            <version>1.4.28</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.adobe.cq.social</groupId>
-            <artifactId>cq-social-qna</artifactId>
-            <version>1.3.9</version>
+            <version>1.3.84</version>
             <scope>provided</scope>
         </dependency>
         <!-- Sling -->

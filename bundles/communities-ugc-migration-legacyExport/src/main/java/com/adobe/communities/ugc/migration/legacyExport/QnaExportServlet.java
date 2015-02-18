@@ -17,7 +17,7 @@
  **************************************************************************/
 package com.adobe.communities.ugc.migration.legacyExport;
 
-import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
+//import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
