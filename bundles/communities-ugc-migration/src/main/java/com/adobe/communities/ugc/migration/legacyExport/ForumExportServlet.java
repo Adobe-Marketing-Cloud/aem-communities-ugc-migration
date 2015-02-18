@@ -28,7 +28,8 @@ import java.util.Map;
 import javax.jcr.RepositoryException;
 import javax.servlet.ServletException;
 
-import com.adobe.communities.ugc.migration.UGCExportHelper;
+import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
+import com.adobe.communities.ugc.migration.export.UGCExportHelper;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -53,7 +54,7 @@ import com.adobe.cq.social.forum.api.Post;
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/forum/export")})
 public class ForumExportServlet extends SlingSafeMethodsServlet {
 
-    final static String LABEL_REPLIES = UGCExportHelper.NAMESPACE_PREFIX + "replies";
+
     Writer responseWriter;
     @Override
     protected void doGet(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
@@ -79,9 +80,9 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
             throws ServletException, IOException {
         try {
             writer.object();
-            writer.key(UGCExportHelper.LABEL_CONTENT_TYPE);
+            writer.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
             writer.value(getContentType());
-            writer.key(UGCExportHelper.LABEL_CONTENT);
+            writer.key(ContentTypeDefinitions.LABEL_CONTENT);
             writer.array();
             final List<Post> items = forum.getTopics(0, forum.getTopicCount(), true);
             for (Post post : items) {
@@ -115,27 +116,22 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
                 }
                 writer.key(prop.getKey());
                 writer.value(list);
-//                returnValue.put(prop.getKey(), list);
             } else if (value instanceof GregorianCalendar) {
                 timestampFields.put(prop.getKey());
                 writer.key(prop.getKey());
                 writer.value(((Calendar) value).getTimeInMillis());
-//                returnValue.put(prop.getKey(), ((Calendar) value).getTimeInMillis());
             } else {
                 writer.key(prop.getKey());
                 writer.value(prop.getValue());
-//                returnValue.put(prop.getKey(), prop.getValue());
             }
         }
         if (timestampFields.length() > 0) {
-            writer.key(UGCExportHelper.LABEL_TIMESTAMP_FIELDS);
+            writer.key(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS);
             writer.value(timestampFields);
-//            returnValue.put(UGCExportHelper.LABEL_TIMESTAMP_FIELDS, timestampFields);
         }
         final Resource thisResource = resolver.getResource(post.getPath());
-//        final JSONObject subNodes = new JSONObject();
         if (thisResource.hasChildren()) {
-            writer.key(UGCExportHelper.LABEL_SUBNODES);
+            writer.key(ContentTypeDefinitions.LABEL_SUBNODES);
             final JSONWriter object = writer.object();
             for (final Resource subNode : thisResource.getChildren()) {
                 final String nodeName = subNode.getName();
@@ -153,7 +149,7 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
         }
         final Resource attachments = thisResource.getChild("attachments");
         if (attachments != null) {
-            writer.key(UGCExportHelper.LABEL_ATTACHMENTS);
+            writer.key(ContentTypeDefinitions.LABEL_ATTACHMENTS);
             final JSONWriter attachmentsWriter = writer.array();
             for (final Resource attachment : attachments.getChildren()) {
                 UGCExportHelper.extractAttachment(responseWriter, attachmentsWriter.object(), attachment);
@@ -163,7 +159,7 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
         }
         final Iterator<Post> posts = post.getPosts();
         if (posts.hasNext()) {
-            writer.key(LABEL_REPLIES);
+            writer.key(ContentTypeDefinitions.LABEL_REPLIES);
             final JSONWriter replyWriter = writer.array();
             while (posts.hasNext()) {
                 extractEntry(replyWriter.object(), posts.next(), resolver);
@@ -175,6 +171,6 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
     }
 
     protected String getContentType() {
-        return UGCExportHelper.LABEL_FORUM;
+        return ContentTypeDefinitions.LABEL_FORUM;
     }
 }

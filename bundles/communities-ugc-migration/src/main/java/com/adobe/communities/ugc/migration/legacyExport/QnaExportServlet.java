@@ -17,7 +17,7 @@
  **************************************************************************/
 package com.adobe.communities.ugc.migration.legacyExport;
 
-import com.adobe.communities.ugc.migration.UGCExportHelper;
+import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -31,6 +31,6 @@ public class QnaExportServlet extends ForumExportServlet {
     
     @Override
     protected String getContentType() {
-        return UGCExportHelper.LABEL_QNA_FORUM;
+        return ContentTypeDefinitions.LABEL_QNA_FORUM;
     }
 }

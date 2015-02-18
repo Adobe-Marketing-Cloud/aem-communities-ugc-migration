@@ -15,7 +15,7 @@
  * is strictly forbidden unless prior written permission is obtained
  * from Adobe Systems Incorporated.
  **************************************************************************/
-package com.adobe.communities.ugc.migration;
+package com.adobe.communities.ugc.migration.export;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,6 +24,7 @@ import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.Map;
 
+import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ValueMap;
@@ -33,19 +34,7 @@ import org.apache.sling.commons.json.io.JSONWriter;
 
 public class UGCExportHelper {
 
-    public final static String NAMESPACE_PREFIX             = "ugcExport:";
-    public final static String LABEL_CONTENT_TYPE           = NAMESPACE_PREFIX + "contentType";
-    public final static String LABEL_CONTENT                = "content";
-    public final static String LABEL_ATTACHMENTS            = NAMESPACE_PREFIX + "attachments";
-    public final static String LABEL_TIMESTAMP_FIELDS       = NAMESPACE_PREFIX + "timestampFields";
-    public final static String LABEL_ENCODED_DATA           = NAMESPACE_PREFIX + "encodedData";
-    public final static String LABEL_ENCODED_DATA_FIELDNAME = NAMESPACE_PREFIX + "encodedDataFieldName";
-    public final static String LABEL_ERROR                  = NAMESPACE_PREFIX + "error";
-    public final static String LABEL_SUBNODES               = NAMESPACE_PREFIX + "subNodes";
-
-
-    public final static String LABEL_FORUM = "forum";
-    public final static String LABEL_QNA_FORUM = "qnaForum";
+    private final static int DATA_ENCODING_CHUNK_SIZE = 1440;
 
     public static void extractSubNode(JSONWriter object, final Resource node) throws JSONException {
         final ValueMap childVm = node.getValueMap();
@@ -64,29 +53,29 @@ public class UGCExportHelper {
                 object.key(prop.getKey());
                 object.value(((Calendar) value).getTimeInMillis());
             } else if (value instanceof InputStream) {
-                object.key(LABEL_ENCODED_DATA_FIELDNAME);
+                object.key(ContentTypeDefinitions.LABEL_ENCODED_DATA_FIELDNAME);
                 object.value(prop.getKey());
-                object.key(LABEL_ENCODED_DATA);
+                object.key(ContentTypeDefinitions.LABEL_ENCODED_DATA);
                 object.value(""); //if we error out on the first read attempt, we need a placeholder value still
                 try {
                     final InputStream data = (InputStream) value;
-                    byte[] byteData = new byte[1440];
+                    byte[] byteData = new byte[DATA_ENCODING_CHUNK_SIZE];
                     int read = 0;
                     while (read != -1) {
                         read = data.read(byteData);
-                        if (read > 0 && read < 1440) {
+                        if (read > 0 && read < DATA_ENCODING_CHUNK_SIZE) {
                             // make a right-size container for the byte data actually read
                             byte[] byteArray = new byte[read];
                             System.arraycopy(byteData, 0, byteArray, 0, read);
                             byte[] encodedBytes = Base64.encodeBase64(byteArray);
                             object.value(new String(encodedBytes));
-                        } else if (read == 1440) {
+                        } else if (read == DATA_ENCODING_CHUNK_SIZE) {
                             byte[] encodedBytes = Base64.encodeBase64(byteData);
                             object.value(new String(encodedBytes));
                         }
                     }
                 } catch (IOException e) {
-                    object.key(LABEL_ERROR);
+                    object.key(ContentTypeDefinitions.LABEL_ERROR);
                     object.value("IOException while getting attachment: " + e.getMessage());
                 }
             } else {
@@ -95,11 +84,11 @@ public class UGCExportHelper {
             }
         }
         if (timestampFields.length() > 0) {
-            object.key(LABEL_TIMESTAMP_FIELDS);
+            object.key(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS);
             object.value(timestampFields);
         }
         if (node.hasChildren()) {
-            object.key(LABEL_SUBNODES);
+            object.key(ContentTypeDefinitions.LABEL_SUBNODES);
             object.object();
             for (final Resource subNode : node.getChildren()) {
                 object.key(subNode.getName());
@@ -114,13 +103,13 @@ public class UGCExportHelper {
             throws JSONException {
         Resource contentNode = node.getChild("jcr:content");
         if (contentNode == null) {
-            writer.key(LABEL_ERROR);
+            writer.key(ContentTypeDefinitions.LABEL_ERROR);
             writer.value("provided resource was not an attachment - no content node");
             return;
         }
         ValueMap content = contentNode.getValueMap();
         if (!content.containsKey("jcr:mimeType") || !content.containsKey("jcr:data")) {
-            writer.key(LABEL_ERROR);
+            writer.key(ContentTypeDefinitions.LABEL_ERROR);
             writer.value("provided resource was not an attachment - content node contained no attachment data");
             return;
         }
@@ -132,24 +121,24 @@ public class UGCExportHelper {
         try {
             ioWriter.write(",\"jcr:data\":\"");
             final InputStream data = (InputStream) content.get("jcr:data");
-            byte[] byteData = new byte[1440];
+            byte[] byteData = new byte[DATA_ENCODING_CHUNK_SIZE];
             int read = 0;
             while (read != -1) {
                 read = data.read(byteData);
-                if (read > 0 && read < 1440) {
+                if (read > 0 && read < DATA_ENCODING_CHUNK_SIZE) {
                     // make a right-size container for the byte data actually read
                     byte[] byteArray = new byte[read];
                     System.arraycopy(byteData, 0, byteArray, 0, read);
                     byte[] encodedBytes = Base64.encodeBase64(byteArray);
                     ioWriter.write(new String(encodedBytes));
-                } else if (read == 1440) {
+                } else if (read == DATA_ENCODING_CHUNK_SIZE) {
                     byte[] encodedBytes = Base64.encodeBase64(byteData);
                     ioWriter.write(new String(encodedBytes));
                 }
             }
             ioWriter.write("\"");
         } catch (IOException e) {
-            writer.key(LABEL_ERROR);
+            writer.key(ContentTypeDefinitions.LABEL_ERROR);
             writer.value("IOException while getting attachment: " + e.getMessage());
         }
     }
