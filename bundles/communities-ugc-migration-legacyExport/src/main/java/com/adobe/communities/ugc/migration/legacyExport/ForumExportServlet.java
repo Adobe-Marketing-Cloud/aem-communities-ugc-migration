@@ -18,7 +18,9 @@
 package com.adobe.communities.ugc.migration.legacyExport;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.io.Writer;
+import java.net.URLEncoder;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.Iterator;
@@ -83,17 +85,15 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
             writer.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
             writer.value(getContentType());
             writer.key(ContentTypeDefinitions.LABEL_CONTENT);
-            writer.array();
+            writer.object();
             final List<Post> items = forum.getTopics(0, forum.getTopicCount(), true);
             for (Post post : items) {
-                JSONWriter object = writer.object();
-                object.key(post.getId());
-                JSONWriter postObject = object.object();
-                extractEntry(postObject, post, resolver);
+                writer.key(post.getId());
+                JSONWriter postObject = writer.object();
+                extractEntry(postObject, post, resolver, true);
                 postObject.endObject();
-                object.endObject();
             }
-            writer.endArray();
+            writer.endObject();
             writer.endObject();
         } catch (final JSONException e) {
             throw new ServletException(e);
@@ -102,7 +102,7 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
         }
     }
 
-    protected JSONObject extractEntry(final JSONWriter writer, final Post post, final ResourceResolver resolver) throws JSONException {
+    protected JSONObject extractEntry(final JSONWriter writer, final Post post, final ResourceResolver resolver, final Boolean isTopic) throws JSONException {
 
         final JSONObject returnValue = new JSONObject();
         final ValueMap vm = post.getProperties();
@@ -120,9 +120,20 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
                 timestampFields.put(prop.getKey());
                 writer.key(prop.getKey());
                 writer.value(((Calendar) value).getTimeInMillis());
+            } else if (prop.getKey().equals("sling:resourceType")) {
+                writer.key(prop.getKey());
+                if (isTopic) {
+                    writer.value("social/qna/components/hbs/topic");
+                } else {
+                    writer.value("social/qna/components/hbs/post");
+                }
             } else {
                 writer.key(prop.getKey());
-                writer.value(prop.getValue());
+                try {
+                    writer.value(URLEncoder.encode(prop.getValue().toString(), "UTF-8"));
+                } catch (UnsupportedEncodingException e) {
+                    throw new JSONException("Unsupported encoding - UTF-8", e);
+                }
             }
         }
         if (timestampFields.length() > 0) {
@@ -130,23 +141,6 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
             writer.value(timestampFields);
         }
         final Resource thisResource = resolver.getResource(post.getPath());
-        if (thisResource.hasChildren()) {
-            writer.key(ContentTypeDefinitions.LABEL_SUBNODES);
-            final JSONWriter object = writer.object();
-            for (final Resource subNode : thisResource.getChildren()) {
-                final String nodeName = subNode.getName();
-                if (nodeName.matches("^[0-9]+" + Post.POST_POSTFIX + "$")) {
-                    continue; //this is a folder of replies, which will be picked up lower down
-                }
-                if (nodeName.equals("attachments")) {
-                    continue; //handle attachments separately
-                }
-                object.key(nodeName);
-                UGCExportHelper.extractSubNode(object.object(), subNode);
-                object.endObject();
-            }
-            writer.endObject();
-        }
         final Resource attachments = thisResource.getChild("attachments");
         if (attachments != null) {
             writer.key(ContentTypeDefinitions.LABEL_ATTACHMENTS);
@@ -157,15 +151,34 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
             }
             writer.endArray();
         }
+        if (thisResource.hasChildren()) {
+            writer.key(ContentTypeDefinitions.LABEL_SUBNODES);
+            final JSONWriter object = writer.object();
+            for (final Resource subNode : thisResource.getChildren()) {
+                final String nodeName = subNode.getName();
+                if (nodeName.matches("^[0-9]+" + Post.POST_POSTFIX + "$")) {
+                    continue; //this is a folder of replies, which will be picked up lower down
+                }
+                if (nodeName.equals("attachments")) {
+                    continue; //already handled attachments up above
+                }
+                object.key(nodeName);
+                UGCExportHelper.extractSubNode(object.object(), subNode);
+                object.endObject();
+            }
+            writer.endObject();
+        }
         final Iterator<Post> posts = post.getPosts();
         if (posts.hasNext()) {
             writer.key(ContentTypeDefinitions.LABEL_REPLIES);
-            final JSONWriter replyWriter = writer.array();
+            final JSONWriter replyWriter = writer.object();
             while (posts.hasNext()) {
-                extractEntry(replyWriter.object(), posts.next(), resolver);
+                Post childPost = posts.next();
+                replyWriter.key(childPost.getId());
+                extractEntry(replyWriter.object(), childPost, resolver, false);
                 replyWriter.endObject();
             }
-            writer.endArray();
+            writer.endObject();
         }
         return returnValue;
     }
