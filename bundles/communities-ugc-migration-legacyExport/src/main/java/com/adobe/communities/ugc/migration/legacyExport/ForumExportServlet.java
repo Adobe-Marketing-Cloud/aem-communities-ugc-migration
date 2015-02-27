@@ -151,10 +151,11 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
             }
             writer.endArray();
         }
-        if (thisResource.hasChildren()) {
+        final Iterable<Resource> childNodes = thisResource.getChildren();
+        if (childNodes != null) {
             writer.key(ContentTypeDefinitions.LABEL_SUBNODES);
             final JSONWriter object = writer.object();
-            for (final Resource subNode : thisResource.getChildren()) {
+            for (final Resource subNode : childNodes) {
                 final String nodeName = subNode.getName();
                 if (nodeName.matches("^[0-9]+" + Post.POST_POSTFIX + "$")) {
                     continue; //this is a folder of replies, which will be picked up lower down

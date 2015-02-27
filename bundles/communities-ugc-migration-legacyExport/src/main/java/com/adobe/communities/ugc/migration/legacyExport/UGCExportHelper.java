@@ -37,7 +37,7 @@ public class UGCExportHelper {
     private final static int DATA_ENCODING_CHUNK_SIZE = 1440;
 
     public static void extractSubNode(JSONWriter object, final Resource node) throws JSONException {
-        final ValueMap childVm = node.getValueMap();
+        final ValueMap childVm = node.adaptTo(ValueMap.class);
         final JSONArray timestampFields = new JSONArray();
         for (Map.Entry<String, Object> prop : childVm.entrySet()) {
             final Object value = prop.getValue();
@@ -87,10 +87,11 @@ public class UGCExportHelper {
             object.key(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS);
             object.value(timestampFields);
         }
-        if (node.hasChildren()) {
+        final Iterable<Resource> childNodes = node.getChildren();
+        if (childNodes != null) {
             object.key(ContentTypeDefinitions.LABEL_SUBNODES);
             object.object();
-            for (final Resource subNode : node.getChildren()) {
+            for (final Resource subNode : childNodes) {
                 object.key(subNode.getName());
                 JSONWriter subObject = object.object();
                 extractSubNode(subObject, subNode);
@@ -107,7 +108,7 @@ public class UGCExportHelper {
             writer.value("provided resource was not an attachment - no content node");
             return;
         }
-        ValueMap content = contentNode.getValueMap();
+        ValueMap content = contentNode.adaptTo(ValueMap.class);
         if (!content.containsKey("jcr:mimeType") || !content.containsKey("jcr:data")) {
             writer.key(ContentTypeDefinitions.LABEL_ERROR);
             writer.value("provided resource was not an attachment - content node contained no attachment data");
