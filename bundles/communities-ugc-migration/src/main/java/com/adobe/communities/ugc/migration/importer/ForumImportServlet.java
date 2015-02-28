@@ -94,33 +94,7 @@ public class ForumImportServlet extends SlingAllMethodsServlet {
             throw new ServletException("Could not find a valid resource for export");
         }
 
-        // now get the SocialResourceProvider
-//        final SocialResourceConfiguration socialConfig = socialUtils.getStorageConfig(resource);
-//        SocialResourceProvider resProvider;
-//
-//        if (socialConfig != null) {
-//            final String remoteLocation = socialConfig.getAsiPath();
-//            if (remoteLocation != null) {
-//                final SocialResource remoteResource =
-//                        SocialResourceUtils.getSocialResource(resource.getResourceResolver().getResource(remoteLocation));
-//                if (remoteResource != null) {
-//
-//                    resProvider = remoteResource.getResourceProvider();
-//
-//                    if (resProvider == null) {
-//                        throw new ServletException("Unable to get a SocialResourceProvider for resource at " + path);
-//                    }
-//                } else {
-//                    throw new ServletException("Remote resource is null or not a SocialResource");
-//                }
-//            } else {
-//                throw new ServletException("Remote location is null");
-//            }
-//        } else {
-//            throw new ServletException("Cloud config is null");
-//        }
-
-        // finally get the uploaded file
+        // now get the uploaded file
         final RequestParameter[] fileRequestParameters = request.getRequestParameters("file");
         if (fileRequestParameters != null && fileRequestParameters.length > 0
                 && !fileRequestParameters[0].isFormField()) {
@@ -134,7 +108,7 @@ public class ForumImportServlet extends SlingAllMethodsServlet {
                 if(jsonParser.getCurrentName().equals(ContentTypeDefinitions.LABEL_CONTENT_TYPE)) {
                     jsonParser.nextToken();
                     final String contentType = jsonParser.getValueAsString();
-                    if (contentType.equals(ContentTypeDefinitions.LABEL_FORUM)) {
+                    if (contentType.equals(getContentType())) {
                         jsonParser.nextToken(); // content
                         if (jsonParser.getCurrentName().equals(ContentTypeDefinitions.LABEL_CONTENT)) {
                             jsonParser.nextToken(); // startObject
@@ -148,23 +122,32 @@ public class ForumImportServlet extends SlingAllMethodsServlet {
                                 } catch (final OperationException e) {
                                     throw new ServletException("Encountered an OperationException", e);
                                 }
+                            } else {
+                                throw new ServletException("Start object token not found for content");
                             }
+                        } else {
+                            throw new ServletException("Content not found");
                         }
+                    } else {
+                        throw new ServletException("Expected forum data");
                     }
+                } else {
+                    throw new ServletException("Content Type not specified");
                 }
+            } else {
+                throw new ServletException("Invalid Json format");
             }
         }
         return;
     }
 
+    protected String getContentType() {
+        return ContentTypeDefinitions.LABEL_FORUM;
+    }
+
     private void extractTopic(final JsonParser jsonParser, final Resource resource, final ResourceResolver resolver)
             throws ServletException, IOException, OperationException {
 
-//        final Forum forum = resource.adaptTo(Forum.class);
-//        if (forum == null) {
-//            throw new ServletException("Provided path to resource was not a forum");
-//        }
-//        jsonParser.nextToken(); //token should be the social:key
         if (jsonParser.getCurrentToken().equals(JsonToken.END_OBJECT)) {
             return; // replies could just be an empty object (i.e. "ugc:replies":{} ) in which case, do nothing
         }
@@ -205,7 +188,7 @@ public class ForumImportServlet extends SlingAllMethodsServlet {
                     // so we can create the post now if we haven't already, and then dive in
                     if (post == null) {
                         try {
-                            post = forumOperations.create(resource, author, properties, attachments, resolver.adaptTo(Session.class));
+                            post = createPost(resource, author, properties, attachments, resolver.adaptTo(Session.class));
                         } catch (Exception e) {
                             throw new ServletException(e.getMessage(), e);
                         }
@@ -243,7 +226,7 @@ public class ForumImportServlet extends SlingAllMethodsServlet {
                             if (properties.containsKey(timestampLabel) && properties.get(timestampLabel) instanceof Long) {
                                 final Calendar calendar = new GregorianCalendar();
                                 calendar.setTimeInMillis((Long) properties.get(timestampLabel));
-                                properties.put(timestampLabel, calendar);
+                                properties.put(timestampLabel, calendar.getTime());
                             }
                             jsonParser.nextToken();
                         }
@@ -261,12 +244,17 @@ public class ForumImportServlet extends SlingAllMethodsServlet {
                 jsonParser.nextToken();
             }
             if (post == null) {
-                forumOperations.create(resource, author, properties, attachments, resolver.adaptTo(Session.class));
+                createPost(resource, author, properties, attachments, resolver.adaptTo(Session.class));
             }
         } else {
             throw new IOException("Improperly formed JSON - expected an OBJECT_START token, but got " + jsonParser.getCurrentToken().toString());
         }
         return;
+    }
+
+    protected Resource createPost(final Resource resource, final String author, final Map<String, Object> properties,
+                                  final List<DataSource> attachments, final Session session) throws OperationException {
+        return forumOperations.create(resource, author, properties, attachments, session);
     }
 
     private List<DataSource> getAttachments(final JsonParser jsonParser) throws IOException {

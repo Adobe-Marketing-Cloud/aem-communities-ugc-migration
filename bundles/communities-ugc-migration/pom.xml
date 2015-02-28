@@ -178,5 +178,15 @@
             <artifactId>org.apache.felix.scr</artifactId>
             <version>1.8.2</version>
         </dependency>
+        <dependency>
+            <groupId>com.adobe.granite</groupId>
+            <artifactId>com.adobe.granite.replication.core</artifactId>
+            <version>5.16.20</version>
+        </dependency>
+        <dependency>
+            <groupId>com.adobe.granite</groupId>
+            <artifactId>com.adobe.granite.replication.core</artifactId>
+            <version>5.16.20</version>
+        </dependency>
     </dependencies>
 </project>
