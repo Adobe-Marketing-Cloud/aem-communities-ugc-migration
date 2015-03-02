@@ -19,7 +19,9 @@ package com.adobe.communities.ugc.migration.legacyExport;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.io.Writer;
+import java.net.URLEncoder;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.Map;
@@ -44,7 +46,11 @@ public class UGCExportHelper {
             if (value instanceof String[]) {
                 final JSONArray list = new JSONArray();
                 for (String v : (String[]) value) {
-                    list.put(v);
+                    try {
+                        list.put(URLEncoder.encode(v, "UTF-8"));
+                    } catch (UnsupportedEncodingException e) {
+                        throw new JSONException("String value cannot be encoded as UTF-8 for JSON transmission", e);
+                    }
                 }
                 object.key(prop.getKey());
                 object.value(list);
@@ -80,7 +86,11 @@ public class UGCExportHelper {
                 }
             } else {
                 object.key(prop.getKey());
-                object.value(prop.getValue());
+                try {
+                    object.value(URLEncoder.encode(prop.getValue().toString(), "UTF-8"));
+                } catch (UnsupportedEncodingException e) {
+                    throw new JSONException("String value cannot be encoded as UTF-8 for JSON transmission", e);
+                }
             }
         }
         if (timestampFields.length() > 0) {
