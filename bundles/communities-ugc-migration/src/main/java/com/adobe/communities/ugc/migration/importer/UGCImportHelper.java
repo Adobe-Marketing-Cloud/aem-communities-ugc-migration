@@ -31,10 +31,18 @@ import java.util.Map;
 
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
 import com.adobe.cq.social.commons.FileDataSource;
+import com.adobe.cq.social.commons.client.endpoints.OperationException;
 import com.adobe.cq.social.forum.api.Post;
+import com.adobe.cq.social.tally.Poll;
+import com.adobe.cq.social.tally.Tally;
+import com.adobe.cq.social.tally.Voting;
+import com.adobe.cq.social.tally.client.api.RatingSocialComponent;
+import com.adobe.cq.social.tally.client.api.VotingSocialComponent;
+import com.adobe.cq.social.tally.client.endpoints.TallyOperationsService;
 import com.adobe.cq.social.ugcbase.SocialResourceProvider;
 import com.fasterxml.jackson.core.JsonLocation;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.felix.scr.annotations.Reference;
 import org.apache.sling.api.resource.PersistenceException;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
@@ -46,6 +54,8 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 
 import javax.activation.DataSource;
+import javax.jcr.Session;
+import javax.naming.OperationNotSupportedException;
 
 public class UGCImportHelper {
 
@@ -109,6 +119,82 @@ public class UGCImportHelper {
         }
         jsonParser.nextToken(); //skip the END_OBJECT token
         return subMap;
+    }
+
+    public static void extractTally(final Resource post, final JsonParser jsonParser, final ResourceResolver resolver,
+                             final TallyOperationsService tallyOperationsService)
+        throws IOException {
+        jsonParser.nextToken(); //should be start object, but would be end array if no objects were present
+        while (!jsonParser.getCurrentToken().equals(JsonToken.END_ARRAY)) {
+            Long timestamp = null;
+            String userIdentifier = null;
+            String response = null;
+            String tallyType = null;
+            jsonParser.nextToken();
+            while (!jsonParser.getCurrentToken().equals(JsonToken.END_OBJECT)) {
+                final String label = jsonParser.getCurrentName();
+                jsonParser.nextToken();
+                if (label.equals("timestamp")) {
+                    timestamp = jsonParser.getValueAsLong();
+                } else if (label.equals("response")) {
+                    response = jsonParser.getValueAsString();
+                } else if (label.equals("userIdentifier")) {
+                    userIdentifier = jsonParser.getValueAsString();
+                } else if (label.equals("tallyType")) {
+                    tallyType = jsonParser.getValueAsString();
+                }
+                jsonParser.nextToken();
+            }
+            if (timestamp != null && userIdentifier != null && response != null && tallyType != null) {
+                createTally(resolver, post, tallyType, userIdentifier, timestamp, response, tallyOperationsService);
+            }
+            jsonParser.nextToken();
+        }
+    }
+
+    private static void createTally(final ResourceResolver resolver, final Resource post, final String tallyType,
+                                    final String userIdentifier, final Long timestamp, final String response,
+                                    final TallyOperationsService tallyOperationsService)
+        throws PersistenceException {
+
+        Map<String, Object> properties = new HashMap<String, Object>();
+        properties.put("jcr:primaryType", "social:asiResource");
+        final Calendar calendar = new GregorianCalendar();
+        calendar.setTimeInMillis(timestamp);
+        properties.put("jcr:created", calendar.getTime());
+        properties.put("timestamp", calendar.getTime());
+        Resource tallyResource;
+        Tally tally;
+        if (tallyType.equals(TallyOperationsService.VOTING)) {
+            tallyResource = post.getChild("voting");
+            if (tallyResource == null) {
+                tallyResource = resolver.create(post, "voting", properties);
+            }
+            tally = tallyResource.adaptTo(Voting.class);
+            tally.setTallyResourceType(VotingSocialComponent.VOTING_RESOURCE_TYPE);
+        } else if (tallyType.equals(TallyOperationsService.POLL)) {
+            tallyResource = post.getChild("poll");
+            if (tallyResource == null) {
+                tallyResource = resolver.create(post, "poll", properties);
+            }
+            tally = tallyResource.adaptTo(Poll.class);
+        } else if (tallyType.equals(TallyOperationsService.RATING)) {
+            tallyResource = post.getChild("rating");
+            if (tallyResource == null) {
+                tallyResource = resolver.create(post, "rating", properties);
+            }
+            tally = tallyResource.adaptTo(Voting.class);
+            tally.setTallyResourceType(RatingSocialComponent.RATING_RESOURCE_TYPE);
+        } else {
+            throw new RuntimeException("unrecognized tally type");
+        }
+        // Needed params:
+        try {
+            tallyOperationsService.setTallyResponse(tally, userIdentifier, resolver.adaptTo(Session.class), response,
+                    tallyType, properties);
+        } catch (OperationException e) {
+            throw new RuntimeException("Unable to set the tally response value: " + e.getMessage(), e);
+        }
     }
 
     /**

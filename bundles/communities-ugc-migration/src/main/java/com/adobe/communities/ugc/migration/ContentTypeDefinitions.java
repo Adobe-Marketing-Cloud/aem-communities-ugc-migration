@@ -23,6 +23,7 @@ public class ContentTypeDefinitions {
     public final static String LABEL_CONTENT_TYPE           = NAMESPACE_PREFIX + "contentType";
     public final static String LABEL_CONTENT                = NAMESPACE_PREFIX + "content";
     public final static String LABEL_ATTACHMENTS            = NAMESPACE_PREFIX + "attachments";
+    public final static String LABEL_TALLY                  = NAMESPACE_PREFIX + "tally";
     public final static String LABEL_TIMESTAMP_FIELDS       = NAMESPACE_PREFIX + "timestampFields";
     public final static String LABEL_ENCODED_DATA           = NAMESPACE_PREFIX + "encodedData";
     public final static String LABEL_ENCODED_DATA_FIELDNAME = NAMESPACE_PREFIX + "encodedDataFieldName";

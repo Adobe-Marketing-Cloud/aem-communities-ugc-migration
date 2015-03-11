@@ -24,9 +24,13 @@ import java.io.Writer;
 import java.net.URLEncoder;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.Iterator;
 import java.util.Map;
 
 //import com.adobe.communities.ugc.migration.legacyExport.ContentTypeDefinitions;
+import com.adobe.cq.social.tally.Response;
+import com.adobe.cq.social.tally.Vote;
+import com.adobe.cq.social.tally.Voting;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ValueMap;
@@ -151,6 +155,29 @@ public class UGCExportHelper {
         } catch (IOException e) {
             writer.key(ContentTypeDefinitions.LABEL_ERROR);
             writer.value("IOException while getting attachment: " + e.getMessage());
+        }
+    }
+
+    public static void extractTally(final JSONWriter voteObjects, final Resource voteResource, final String tallyType)
+    throws JSONException {
+        final Voting voting = voteResource.adaptTo(Voting.class);
+        final Iterator<Response<Vote>> responses = voting.getResponses(0L);
+        // every tally object must define 4 fields: timestamp, response, userIdentifier, and tallyType
+        while (responses.hasNext()) {
+            voteObjects.object();
+            final Response<Vote> response = responses.next();
+            final Resource responseResource = response.getResource();
+            final ValueMap resourceProperties = responseResource.adaptTo(ValueMap.class);
+            voteObjects.key("timestamp");
+            voteObjects.value(resourceProperties.get("timestamp"));
+            voteObjects.key("response");
+            voteObjects.value(resourceProperties.get("response"));
+            voteObjects.key("userIdentifier");
+            voteObjects.value(resourceProperties.get("userIdentifier"));
+            // for the purposes of this export, tallyType is fixed
+            voteObjects.key("tallyType");
+            voteObjects.value(tallyType);
+            voteObjects.endObject();
         }
     }
 }

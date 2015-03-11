@@ -17,43 +17,44 @@
  **************************************************************************/
 package com.adobe.communities.ugc.migration.importer;
 
-import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
-import com.adobe.cq.social.commons.client.endpoints.OperationException;
-import com.adobe.cq.social.qna.api.QnaPost;
-import com.adobe.cq.social.qna.client.api.QnaPostSocialComponentFactory;
+import java.util.List;
+import java.util.Map;
+
+import javax.activation.DataSource;
+import javax.jcr.Session;
+
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.api.resource.Resource;
-import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 
-import javax.activation.DataSource;
-import javax.jcr.Session;
-import java.util.List;
-import java.util.Map;
+import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
+import com.adobe.cq.social.commons.client.endpoints.OperationException;
+import com.adobe.cq.social.qna.client.endpoints.QnaForumOperations;
 
-@Component(label = "UGC Importer for Q&A Data",
-        description = "Moves Q&A data within json files into the active SocialResourceProvider", specVersion = "1.0")
-@Service(value = SlingAllMethodsServlet.class)
+@Component(label = "UGC Importer for QnA Data",
+        description = "Moves QnA data within json files into the active SocialResourceProvider", specVersion = "1.0",
+        immediate = true)
+@Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/qna/import")})
 public class QnaImportServlet extends ForumImportServlet {
 
     @Reference
-    QnaPostSocialComponentFactory qnaPostSocialComponentFactory;
+    private QnaForumOperations qnaForumOperations;
 
-    @Override
     protected String getContentType() {
         return ContentTypeDefinitions.LABEL_QNA_FORUM;
     }
 
-    @Override
     protected Resource createPost(final Resource resource, final String author, final Map<String, Object> properties,
                                   final List<DataSource> attachments, final Session session) throws OperationException {
-        Resource post = super.createPost(resource, author, properties, attachments, session);
-        final QnaPost qnaForum = resource.adaptTo(QnaPost.class);
-        QnaPost qnaPost = (QnaPost) qnaPostSocialComponentFactory.getSocialComponent(post);
-        return qnaForum.addPost(resource.getResourceResolver(), qnaPost).getResource();
+
+        if(populateMessage(properties)) {
+            return qnaForumOperations.create(resource, author, properties, attachments, session);
+        } else {
+            return null;
+        }
     }
 }

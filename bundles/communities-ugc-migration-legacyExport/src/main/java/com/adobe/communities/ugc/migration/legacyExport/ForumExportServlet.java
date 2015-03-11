@@ -32,6 +32,9 @@ import javax.servlet.ServletException;
 
 //import com.adobe.communities.ugc.migration.legacyExport.ContentTypeDefinitions;
 //import com.adobe.communities.ugc.migration.legacyExport.UGCExportHelper;
+import com.adobe.cq.social.tally.Response;
+import com.adobe.cq.social.tally.Vote;
+import com.adobe.cq.social.tally.Voting;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -151,6 +154,13 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
             }
             writer.endArray();
         }
+        final Resource voteResource = thisResource.getChild("votes");
+        if (voteResource != null) {
+            writer.key(ContentTypeDefinitions.LABEL_TALLY);
+            final JSONWriter voteObjects = writer.array();
+            UGCExportHelper.extractTally(voteObjects, voteResource, "Voting");
+            writer.endArray();
+        }
         final Iterable<Resource> childNodes = thisResource.getChildren();
         if (childNodes != null) {
             writer.key(ContentTypeDefinitions.LABEL_SUBNODES);
@@ -160,8 +170,8 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
                 if (nodeName.matches("^[0-9]+" + Post.POST_POSTFIX + "$")) {
                     continue; //this is a folder of replies, which will be picked up lower down
                 }
-                if (nodeName.equals("attachments")) {
-                    continue; //already handled attachments up above
+                if (nodeName.equals("attachments") || nodeName.equals("votes")) {
+                    continue; //already handled attachments and votes up above
                 }
                 object.key(nodeName);
                 UGCExportHelper.extractSubNode(object.object(), subNode);

@@ -156,5 +156,11 @@
             <version>2.0.0</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>com.adobe.cq.social</groupId>
+            <artifactId>cq-social-tally</artifactId>
+            <version>1.0.11</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 </project>
