@@ -120,9 +120,15 @@
     <dependencies>
         <!-- APIs -->
         <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+            <version>1.5</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>com.adobe.cq.social</groupId>
             <artifactId>cq-social-commons</artifactId>
-            <version>1.4.144</version>
+            <version>1.2.27</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -159,6 +165,29 @@
         <dependency>
             <groupId>com.adobe.cq.social</groupId>
             <artifactId>cq-social-tally</artifactId>
+            <version>1.0.22</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.adobe.granite</groupId>
+            <artifactId>com.adobe.granite.comments</artifactId>
+            <version>1.0.2</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.adobe.cq.social</groupId>
+            <artifactId>cq-social-calendar</artifactId>
+            <version>1.0.10</version>
+        </dependency>
+        <dependency>
+            <groupId>com.adobe.cq.social</groupId>
+            <artifactId>cq-social-journal</artifactId>
+            <version>1.0.22</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.adobe.cq.social</groupId>
+            <artifactId>cq-social-storage</artifactId>
             <version>1.0.11</version>
             <scope>provided</scope>
         </dependency>

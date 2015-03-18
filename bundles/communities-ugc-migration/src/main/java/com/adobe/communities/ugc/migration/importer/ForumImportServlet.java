@@ -229,7 +229,7 @@ public class ForumImportServlet extends SlingAllMethodsServlet {
                             throw new IOException("Expected an object for the subnodes. Instead: " + field);
                         }
                     } else if (label.equals(ContentTypeDefinitions.LABEL_TALLY)) {
-                        UGCImportHelper.extractTally(post, jsonParser, resolver, tallyOperationsService);
+                        UGCImportHelper.extractTally(post, jsonParser, resProvider, tallyOperationsService);
                     }
 
                 } else if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {

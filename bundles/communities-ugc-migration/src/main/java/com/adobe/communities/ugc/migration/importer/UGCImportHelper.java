@@ -121,7 +121,7 @@ public class UGCImportHelper {
         return subMap;
     }
 
-    public static void extractTally(final Resource post, final JsonParser jsonParser, final ResourceResolver resolver,
+    public static void extractTally(final Resource post, final JsonParser jsonParser, final SocialResourceProvider srp,
                              final TallyOperationsService tallyOperationsService)
         throws IOException {
         jsonParser.nextToken(); //should be start object, but would be end array if no objects were present
@@ -146,42 +146,49 @@ public class UGCImportHelper {
                 jsonParser.nextToken();
             }
             if (timestamp != null && userIdentifier != null && response != null && tallyType != null) {
-                createTally(resolver, post, tallyType, userIdentifier, timestamp, response, tallyOperationsService);
+                createTally(srp, post, tallyType, userIdentifier, timestamp, response, tallyOperationsService);
             }
             jsonParser.nextToken();
         }
     }
 
-    private static void createTally(final ResourceResolver resolver, final Resource post, final String tallyType,
+    private static void createTally(final SocialResourceProvider srp, final Resource post, final String tallyType,
                                     final String userIdentifier, final Long timestamp, final String response,
                                     final TallyOperationsService tallyOperationsService)
         throws PersistenceException {
 
-        Map<String, Object> properties = new HashMap<String, Object>();
+        final ResourceResolver resolver = post.getResourceResolver();
+        final Map<String, Object> properties = new HashMap<String, Object>();
         properties.put("jcr:primaryType", "social:asiResource");
         final Calendar calendar = new GregorianCalendar();
         calendar.setTimeInMillis(timestamp);
         properties.put("jcr:created", calendar.getTime());
-        properties.put("timestamp", calendar.getTime());
         Resource tallyResource;
         Tally tally;
         if (tallyType.equals(TallyOperationsService.VOTING)) {
             tallyResource = post.getChild("voting");
             if (tallyResource == null) {
-                tallyResource = resolver.create(post, "voting", properties);
+                properties.put("sling:resourceType", VotingSocialComponent.VOTING_RESOURCE_TYPE);
+                tallyResource = srp.create(resolver, post.getPath() + "/voting", properties);
+                srp.commit(resolver);
+                properties.remove("sling:resourceType");
             }
             tally = tallyResource.adaptTo(Voting.class);
             tally.setTallyResourceType(VotingSocialComponent.VOTING_RESOURCE_TYPE);
         } else if (tallyType.equals(TallyOperationsService.POLL)) {
             tallyResource = post.getChild("poll");
             if (tallyResource == null) {
-                tallyResource = resolver.create(post, "poll", properties);
+                tallyResource = srp.create(resolver, post.getPath() + "/poll", properties);
+                srp.commit(resolver);
             }
             tally = tallyResource.adaptTo(Poll.class);
         } else if (tallyType.equals(TallyOperationsService.RATING)) {
             tallyResource = post.getChild("rating");
             if (tallyResource == null) {
-                tallyResource = resolver.create(post, "rating", properties);
+                properties.put("sling:resourceType", RatingSocialComponent.RATING_RESOURCE_TYPE);
+                tallyResource = srp.create(resolver, post.getPath() + "/rating", properties);
+                srp.commit(resolver);
+                properties.remove("sling:resourceType");
             }
             tally = tallyResource.adaptTo(Voting.class);
             tally.setTallyResourceType(RatingSocialComponent.RATING_RESOURCE_TYPE);
@@ -190,6 +197,7 @@ public class UGCImportHelper {
         }
         // Needed params:
         try {
+            properties.put("timestamp", calendar.getTime());
             tallyOperationsService.setTallyResponse(tally, userIdentifier, resolver.adaptTo(Session.class), response,
                     tallyType, properties);
         } catch (OperationException e) {

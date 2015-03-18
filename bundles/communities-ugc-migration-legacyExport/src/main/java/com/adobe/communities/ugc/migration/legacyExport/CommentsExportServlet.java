@@ -18,14 +18,8 @@
 package com.adobe.communities.ugc.migration.legacyExport;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.io.Writer;
-import java.net.URLEncoder;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 
 import javax.jcr.RepositoryException;
 import javax.servlet.ServletException;
@@ -37,24 +31,18 @@ import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.Resource;
-import org.apache.sling.api.resource.ResourceResolver;
-import org.apache.sling.api.resource.ValueMap;
 import org.apache.sling.api.servlets.SlingSafeMethodsServlet;
-import org.apache.sling.commons.json.JSONArray;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.io.JSONWriter;
 
-import com.adobe.cq.social.forum.api.Forum;
-import com.adobe.cq.social.forum.api.Post;
+import com.adobe.cq.social.commons.Comment;
+import com.adobe.cq.social.commons.CommentSystem;
 
-//import com.adobe.communities.ugc.migration.legacyExport.ContentTypeDefinitions;
-//import com.adobe.communities.ugc.migration.legacyExport.UGCExportHelper;
-
-@Component(label = "UGC Exporter for Forum Data",
-        description = "Moves forum and qna data into json files for storage or re-import", specVersion = "1.0")
+@Component(label = "UGC Exporter for Comments Data",
+        description = "Moves comments into json files for storage or re-import", specVersion = "1.0")
 @Service
-@Properties({@Property(name = "sling.servlet.paths", value = "/services/social/forum/export")})
-public class ForumExportServlet extends SlingSafeMethodsServlet {
+@Properties({@Property(name = "sling.servlet.paths", value = "/services/social/comments/export")})
+public class CommentsExportServlet extends SlingSafeMethodsServlet {
 
 
     Writer responseWriter;
@@ -71,29 +59,22 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
         if (resource == null) {
             throw new ServletException("Could not find a valid resource for export");
         }
-        final Forum forum = resource.adaptTo(Forum.class);
-        if (forum == null) {
-            throw new ServletException("Provided path to resource was not a forum");
+        try {
+            exportContent(writer, resource);
+        } catch (IOException e) {
+
         }
-        exportContent(writer, forum, request.getResourceResolver());
     }
 
-    protected void exportContent(final JSONWriter writer, final Forum forum, final ResourceResolver resolver)
-            throws ServletException, IOException {
+    protected void exportContent(final JSONWriter writer, final Resource rootNode)
+            throws IOException, ServletException {
         try {
             writer.object();
             writer.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
             writer.value(getContentType());
             writer.key(ContentTypeDefinitions.LABEL_CONTENT);
             writer.object();
-            final List<Post> items = forum.getTopics(0, forum.getTopicCount(), true);
-            for (Post post : items) {
-                writer.key(post.getId());
-                JSONWriter postObject = writer.object();
-                UGCExportHelper.extractTopic(postObject, post, resolver, "social/forum/components/hbs/topic",
-                        "social/forum/components/hbs/post", responseWriter);
-                postObject.endObject();
-            }
+            exportComments(writer, rootNode);
             writer.endObject();
             writer.endObject();
         } catch (final JSONException e) {
@@ -102,9 +83,33 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
             throw new ServletException(e);
         }
     }
+    
+    protected void exportComments(final JSONWriter writer, final Resource rootNode) throws JSONException, RepositoryException, IOException {
 
+        if (rootNode.isResourceType(CommentSystem.RESOURCE_TYPE)) {
+            CommentSystem commentSystem = rootNode.adaptTo(CommentSystem.class);
+            Iterator<Comment> comments = commentSystem.getComments();
+            if (comments.hasNext()) {
+                writer.key(rootNode.getPath());
+                JSONWriter commentsList = writer.array();
+                while (comments.hasNext()) {
+                    UGCExportHelper.extractComment(commentsList.object(), comments.next(), rootNode.getResourceResolver(), responseWriter);
+                    commentsList.endObject();
+                }
+                writer.endArray();
+            }
+        } else if (rootNode.isResourceType(Comment.RESOURCE_TYPE)) {
+            writer.value(rootNode.getPath());
+            UGCExportHelper.extractComment(writer.object(), rootNode.adaptTo(Comment.class), rootNode.getResourceResolver(), responseWriter);
+            writer.endObject();
+        } else {
+            for (final Resource resource : rootNode.getChildren()) {
+                exportComments(writer, resource);
+            }
+        }
+    }
 
     protected String getContentType() {
-        return ContentTypeDefinitions.LABEL_FORUM;
+        return ContentTypeDefinitions.LABEL_COMMENTS;
     }
 }

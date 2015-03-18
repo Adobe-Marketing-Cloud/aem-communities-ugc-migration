@@ -34,4 +34,7 @@ public class ContentTypeDefinitions {
 
     public final static String LABEL_FORUM                  = "forum";
     public final static String LABEL_QNA_FORUM              = "qnaForum";
+    public final static String LABEL_COMMENTS               = "comments";
+    public final static String LABEL_CALENDAR               = "calendar";
+    public final static String LABEL_JOURNAL                = "journal";
 }
