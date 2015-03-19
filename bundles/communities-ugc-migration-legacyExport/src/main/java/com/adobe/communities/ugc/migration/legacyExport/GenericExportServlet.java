@@ -80,10 +80,16 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
     protected void exportContent(final JSONWriter writer, final Resource rootNode, final String rootPath)
             throws IOException, ServletException {
 
-        final String relPath = rootNode.getPath().substring(rootNode.getPath().indexOf(rootPath)+rootPath.length());
+        String relPath = rootNode.getPath().substring(rootNode.getPath().indexOf(rootPath)+rootPath.length());
         try {
             if (rootNode.isResourceType("social/qna/components/qnaforum")) {
                 final Forum forum = rootNode.adaptTo(Forum.class);
+                if (forum == null) { //avoid throwing a null pointer exception
+                    for (final Resource resource : rootNode.getChildren()) {
+                        exportContent(writer, resource, rootPath);
+                    }
+                    return;
+                }
                 final Iterator<Post> posts = forum.getTopics();
                 if (posts.hasNext()) {
                     writer.key(relPath);
@@ -106,6 +112,12 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
             } else if (rootNode.isResourceType(Forum.RESOURCE_TYPE)) {
 
                 final Forum forum = rootNode.adaptTo(Forum.class);
+                if (forum == null) { //avoid throwing a null pointer exception
+                    for (final Resource resource : rootNode.getChildren()) {
+                        exportContent(writer, resource, rootPath);
+                    }
+                    return;
+                }
                 final Iterator<Post> posts = forum.getTopics();
                 if (posts.hasNext()) {
                     writer.key(relPath);
@@ -130,6 +142,12 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                     return; //these are special cases of comments that will be handled by journal instead
                 }
                 final CommentSystem commentSystem = rootNode.adaptTo(CommentSystem.class);
+                if (commentSystem == null) { //avoid throwing a null pointer exception
+                    for (final Resource resource : rootNode.getChildren()) {
+                        exportContent(writer, resource, rootPath);
+                    }
+                    return;
+                }
                 final Iterator<Comment> comments = commentSystem.getComments();
                 if (comments.hasNext()) {
                     writer.key(relPath);
@@ -148,22 +166,32 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                     commentsNode.endObject();
                     writer.endObject();
                 }
-            } else if (rootNode.isResourceType(CalendarConstants.RT_CALENDAR_COMPONENT)) { //"social/calendar/components/calendar"
-                final CqCalendar calendar = rootNode.adaptTo(CqCalendar.class);
+            } else if (rootNode.isResourceType(CalendarConstants.RT_CALENDAR_COMPONENT) ||
+                       rootNode.isResourceType(CalendarConstants.MIX_CALENDAR) ||
+                       rootNode.getResourceType().endsWith("calendar")) {
+                CqCalendar calendar = rootNode.adaptTo(CqCalendar.class);
+                if (calendar == null) { //avoid throwing a null pointer exception if this node isn't actually a calendar
+                    for (final Resource resource : rootNode.getChildren()) {
+                        exportContent(writer, resource, rootPath);
+                    }
+                    return;
+                }
+                final Iterator<Event> events = calendar.getEvents();
+                if (!events.hasNext()) {
+                    return;
+                }
                 writer.key(relPath);
                 final JSONWriter calendarNode = writer.object();
                 calendarNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
                 calendarNode.value(ContentTypeDefinitions.LABEL_CALENDAR);
                 calendarNode.key(ContentTypeDefinitions.LABEL_CONTENT);
-                JSONWriter eventObjects = calendarNode.object();
-                final Iterator<Event> events = calendar.getEvents();
+                JSONWriter eventObjects = calendarNode.array();
                 while (events.hasNext()) {
                     final Event event = events.next();
-                    eventObjects.key(event.getUid());
-                    UGCExportHelper.extractCalendarEvent(eventObjects.object(), event);
+                    UGCExportHelper.extractProperties(eventObjects.object(), event.getProperties());
                     eventObjects.endObject();
                 }
-                calendarNode.endObject();
+                calendarNode.endArray();
                 writer.endObject();
             } else if (rootNode.isResourceType("social/tally/components/poll")) { // No constant defined in 5.6.1
                 writer.key(relPath);
@@ -197,6 +225,12 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                 writer.endObject();
             } else if (rootNode.isResourceType("social/journal/components/entrylist")) {
                 final Journal journal = rootNode.adaptTo(Journal.class);
+                if (journal == null) { //avoid throwing a null pointer exception
+                    for (final Resource resource : rootNode.getChildren()) {
+                        exportContent(writer, resource, rootPath);
+                    }
+                    return;
+                }
                 writer.key(relPath);
                 final JSONWriter journalNode = writer.object();
                 journalNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);

@@ -64,63 +64,7 @@ public class UGCExportHelper {
 
     public static void extractSubNode(JSONWriter object, final Resource node) throws JSONException {
         final ValueMap childVm = node.adaptTo(ValueMap.class);
-        final JSONArray timestampFields = new JSONArray();
-        for (Map.Entry<String, Object> prop : childVm.entrySet()) {
-            final Object value = prop.getValue();
-            if (value instanceof String[]) {
-                final JSONArray list = new JSONArray();
-                for (String v : (String[]) value) {
-                    try {
-                        list.put(URLEncoder.encode(v, "UTF-8"));
-                    } catch (UnsupportedEncodingException e) {
-                        throw new JSONException("String value cannot be encoded as UTF-8 for JSON transmission", e);
-                    }
-                }
-                object.key(prop.getKey());
-                object.value(list);
-            } else if (value instanceof GregorianCalendar) {
-                timestampFields.put(prop.getKey());
-                object.key(prop.getKey());
-                object.value(((Calendar) value).getTimeInMillis());
-            } else if (value instanceof InputStream) {
-                object.key(ContentTypeDefinitions.LABEL_ENCODED_DATA_FIELDNAME);
-                object.value(prop.getKey());
-                object.key(ContentTypeDefinitions.LABEL_ENCODED_DATA);
-                object.value(""); //if we error out on the first read attempt, we need a placeholder value still
-                try {
-                    final InputStream data = (InputStream) value;
-                    byte[] byteData = new byte[DATA_ENCODING_CHUNK_SIZE];
-                    int read = 0;
-                    while (read != -1) {
-                        read = data.read(byteData);
-                        if (read > 0 && read < DATA_ENCODING_CHUNK_SIZE) {
-                            // make a right-size container for the byte data actually read
-                            byte[] byteArray = new byte[read];
-                            System.arraycopy(byteData, 0, byteArray, 0, read);
-                            byte[] encodedBytes = Base64.encodeBase64(byteArray);
-                            object.value(new String(encodedBytes));
-                        } else if (read == DATA_ENCODING_CHUNK_SIZE) {
-                            byte[] encodedBytes = Base64.encodeBase64(byteData);
-                            object.value(new String(encodedBytes));
-                        }
-                    }
-                } catch (IOException e) {
-                    object.key(ContentTypeDefinitions.LABEL_ERROR);
-                    object.value("IOException while getting attachment: " + e.getMessage());
-                }
-            } else {
-                object.key(prop.getKey());
-                try {
-                    object.value(URLEncoder.encode(prop.getValue().toString(), "UTF-8"));
-                } catch (UnsupportedEncodingException e) {
-                    throw new JSONException("String value cannot be encoded as UTF-8 for JSON transmission", e);
-                }
-            }
-        }
-        if (timestampFields.length() > 0) {
-            object.key(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS);
-            object.value(timestampFields);
-        }
+        extractProperties(object, childVm);
         final Iterable<Resource> childNodes = node.getChildren();
         if (childNodes != null) {
             object.key(ContentTypeDefinitions.LABEL_SUBNODES);
@@ -253,10 +197,12 @@ public class UGCExportHelper {
                 voteObject.value(URLEncoder.encode(response, "UTF-8"));
                 voteObject.key("userIdentifier");
                 voteObject.value(URLEncoder.encode(userIdentifier, "UTF-8"));
-                // for the purposes of this export, tallyType is fixed
-                voteObject.key("tallyType");
-                voteObject.value(tallyType);
-                voteObject.endObject();
+                if (tallyType != null) {
+                    // for the purposes of this export, tallyType is fixed
+                    voteObject.key("tallyType");
+                    voteObject.value(tallyType);
+                    voteObject.endObject();
+                }
             }
         }
     }
@@ -455,7 +401,64 @@ public class UGCExportHelper {
         }
     }
 
-    public static void extractCalendarEvent(final JSONWriter eventObject, final Event event) {
+    public static void extractProperties(final JSONWriter object, final Map<String, Object> properties) throws JSONException {
+        final JSONArray timestampFields = new JSONArray();
+        for (Map.Entry<String, Object> prop : properties.entrySet()) {
+            final Object value = prop.getValue();
+            if (value instanceof String[]) {
+                final JSONArray list = new JSONArray();
+                for (String v : (String[]) value) {
+                    try {
+                        list.put(URLEncoder.encode(v, "UTF-8"));
+                    } catch (UnsupportedEncodingException e) {
+                        throw new JSONException("String value cannot be encoded as UTF-8 for JSON transmission", e);
+                    }
+                }
+                object.key(prop.getKey());
+                object.value(list);
+            } else if (value instanceof GregorianCalendar) {
+                timestampFields.put(prop.getKey());
+                object.key(prop.getKey());
+                object.value(((Calendar) value).getTimeInMillis());
+            } else if (value instanceof InputStream) {
+                object.key(ContentTypeDefinitions.LABEL_ENCODED_DATA_FIELDNAME);
+                object.value(prop.getKey());
+                object.key(ContentTypeDefinitions.LABEL_ENCODED_DATA);
+                object.value(""); //if we error out on the first read attempt, we need a placeholder value still
+                try {
+                    final InputStream data = (InputStream) value;
+                    byte[] byteData = new byte[DATA_ENCODING_CHUNK_SIZE];
+                    int read = 0;
+                    while (read != -1) {
+                        read = data.read(byteData);
+                        if (read > 0 && read < DATA_ENCODING_CHUNK_SIZE) {
+                            // make a right-size container for the byte data actually read
+                            byte[] byteArray = new byte[read];
+                            System.arraycopy(byteData, 0, byteArray, 0, read);
+                            byte[] encodedBytes = Base64.encodeBase64(byteArray);
+                            object.value(new String(encodedBytes));
+                        } else if (read == DATA_ENCODING_CHUNK_SIZE) {
+                            byte[] encodedBytes = Base64.encodeBase64(byteData);
+                            object.value(new String(encodedBytes));
+                        }
+                    }
+                } catch (IOException e) {
+                    object.key(ContentTypeDefinitions.LABEL_ERROR);
+                    object.value("IOException while getting attachment: " + e.getMessage());
+                }
+            } else {
+                object.key(prop.getKey());
+                try {
+                    object.value(URLEncoder.encode(prop.getValue().toString(), "UTF-8"));
+                } catch (UnsupportedEncodingException e) {
+                    throw new JSONException("String value cannot be encoded as UTF-8 for JSON transmission", e);
+                }
+            }
+        }
+        if (timestampFields.length() > 0) {
+            object.key(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS);
+            object.value(timestampFields);
+        }
         //not yet implemented
     }
 }
