@@ -188,8 +188,8 @@ public class UGCExportHelper {
 
         final Map<String, Map<Long, ResponseValue>> responses = getTallyResponses(rootNode);
         for (final String userIdentifier : responses.keySet()) {
-            JSONWriter voteObject = responseArray.object();
             for (final Map.Entry<Long, ResponseValue> entry : responses.get(userIdentifier).entrySet()) {
+                final JSONWriter voteObject = responseArray.object();
                 final String response = entry.getValue().getResponseValue();
                 voteObject.key("timestamp");
                 voteObject.value(entry.getKey());
