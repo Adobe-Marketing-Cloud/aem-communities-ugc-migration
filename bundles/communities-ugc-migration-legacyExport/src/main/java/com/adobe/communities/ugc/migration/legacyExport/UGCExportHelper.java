@@ -201,8 +201,8 @@ public class UGCExportHelper {
                     // for the purposes of this export, tallyType is fixed
                     voteObject.key("tallyType");
                     voteObject.value(tallyType);
-                    voteObject.endObject();
                 }
+                voteObject.endObject();
             }
         }
     }
