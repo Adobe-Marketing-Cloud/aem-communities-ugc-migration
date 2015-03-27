@@ -17,21 +17,14 @@
  **************************************************************************/
 package com.adobe.communities.ugc.migration.importer;
 
-import java.util.List;
-import java.util.Map;
-
-import javax.activation.DataSource;
-import javax.jcr.Session;
-
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
-import org.apache.sling.api.resource.Resource;
 
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
-import com.adobe.cq.social.commons.client.endpoints.OperationException;
+import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
 import com.adobe.cq.social.qna.client.endpoints.QnaForumOperations;
 
 @Component(label = "UGC Importer for QnA Data",
@@ -48,13 +41,8 @@ public class QnaImportServlet extends ForumImportServlet {
         return ContentTypeDefinitions.LABEL_QNA_FORUM;
     }
 
-    protected Resource createPost(final Resource resource, final String author, final Map<String, Object> properties,
-                                  final List<DataSource> attachments, final Session session) throws OperationException {
-
-        if(populateMessage(properties)) {
-            return qnaForumOperations.create(resource, author, properties, attachments, session);
-        } else {
-            return null;
-        }
+    @Override
+    protected CommentOperations getOperationsService() {
+        return qnaForumOperations;
     }
 }

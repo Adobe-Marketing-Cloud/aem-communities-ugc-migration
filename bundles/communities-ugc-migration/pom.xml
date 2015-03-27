@@ -122,13 +122,13 @@
         <dependency>
             <groupId>com.adobe.cq.social</groupId>
             <artifactId>cq-social-commons</artifactId>
-            <version>1.5.61</version>
+            <version>1.5.85</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.adobe.cq.social</groupId>
-            <artifactId>cq-social-ugcbase</artifactId>
-            <version>2.0.63</version>
+            <artifactId>cq-social-ugcbase-api</artifactId>
+            <version>2.0.5</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -152,7 +152,7 @@
         <dependency>
             <groupId>com.adobe.cq.social</groupId>
             <artifactId>cq-social-tally</artifactId>
-            <version>1.2.17-SNAPSHOT</version>
+            <version>1.2.23-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
         <!-- Sling -->
@@ -188,6 +188,12 @@
             <groupId>com.adobe.granite</groupId>
             <artifactId>com.adobe.granite.replication.core</artifactId>
             <version>5.16.20</version>
+        </dependency>
+        <dependency>
+            <groupId>com.adobe.cq.social</groupId>
+            <artifactId>cq-social-scf-api</artifactId>
+            <version>1.0.5</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 </project>
