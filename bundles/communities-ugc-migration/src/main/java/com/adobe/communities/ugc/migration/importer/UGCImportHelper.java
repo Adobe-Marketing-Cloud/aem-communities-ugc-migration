@@ -174,9 +174,9 @@ public class UGCImportHelper {
                 if (label.equals("timestamp")) {
                     timestamp = jsonParser.getValueAsLong();
                 } else if (label.equals("response")) {
-                    response = jsonParser.getValueAsString();
+                    response = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
                 } else if (label.equals("userIdentifier")) {
-                    userIdentifier = jsonParser.getValueAsString();
+                    userIdentifier = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
                 } else if (label.equals("tallyType")) {
                     tallyType = jsonParser.getValueAsString();
                 }
@@ -237,8 +237,11 @@ public class UGCImportHelper {
             properties.put("timestamp", Long.toString(calendar.getTimeInMillis()));
             tallyOperationsService.setTallyResponse(tally, userIdentifier, resolver.adaptTo(Session.class), response,
                     tallyType, properties);
-        } catch (OperationException e) {
+        } catch (final OperationException e) {
             throw new RuntimeException("Unable to set the tally response value: " + e.getMessage(), e);
+        } catch (final IllegalArgumentException e) {
+            // We can ignore this. It means that the value set for the response in the migrated data is no longer valid.
+            // This happens for "#neutral#" which used to be a valid response, but was taken out in later versions.
         }
     }
 

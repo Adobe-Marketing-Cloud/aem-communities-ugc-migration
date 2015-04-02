@@ -79,7 +79,7 @@ public class UGCExportHelper {
         }
     }
     public static void extractAttachment(final Writer ioWriter, final JSONWriter writer, final Resource node)
-            throws JSONException {
+            throws JSONException, UnsupportedEncodingException {
         Resource contentNode = node.getChild("jcr:content");
         if (contentNode == null) {
             writer.key(ContentTypeDefinitions.LABEL_ERROR);
@@ -93,7 +93,7 @@ public class UGCExportHelper {
             return;
         }
         writer.key("filename");
-        writer.value(node.getName());
+        writer.value(URLEncoder.encode(node.getName(), "UTF-8"));
         writer.key("jcr:mimeType");
         writer.value(content.get("jcr:mimeType"));
 
