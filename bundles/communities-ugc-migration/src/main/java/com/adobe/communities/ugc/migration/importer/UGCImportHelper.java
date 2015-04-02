@@ -18,55 +18,46 @@
 package com.adobe.communities.ugc.migration.importer;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLDecoder;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import javax.activation.DataSource;
+import javax.jcr.Session;
+import javax.servlet.ServletException;
+
+import org.apache.commons.codec.binary.Base64;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.sling.api.resource.PersistenceException;
+import org.apache.sling.api.resource.Resource;
+import org.apache.sling.api.resource.ResourceResolver;
 
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
 import com.adobe.cq.social.commons.Comment;
-import com.adobe.cq.social.commons.FileDataSource;
-import com.adobe.cq.social.scf.OperationException;
 import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
-import com.adobe.cq.social.forum.api.Post;
 import com.adobe.cq.social.forum.client.endpoints.ForumOperations;
 import com.adobe.cq.social.qna.client.endpoints.QnaForumOperations;
+import com.adobe.cq.social.scf.OperationException;
+import com.adobe.cq.social.srp.SocialResourceProvider;
 import com.adobe.cq.social.tally.Poll;
 import com.adobe.cq.social.tally.Tally;
 import com.adobe.cq.social.tally.Voting;
 import com.adobe.cq.social.tally.client.api.RatingSocialComponent;
 import com.adobe.cq.social.tally.client.api.VotingSocialComponent;
 import com.adobe.cq.social.tally.client.endpoints.TallyOperationsService;
-import com.adobe.cq.social.srp.SocialResourceProvider;
 import com.adobe.cq.social.ugcbase.core.SocialResourceUtils;
-import com.fasterxml.jackson.core.JsonLocation;
-import org.apache.commons.codec.binary.Base64;
-import org.apache.felix.scr.annotations.Reference;
-import org.apache.sling.api.resource.PersistenceException;
-import org.apache.sling.api.resource.Resource;
-import org.apache.sling.api.resource.ResourceResolver;
-import org.apache.sling.api.resource.ValueMap;
-
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 
-import javax.activation.DataSource;
-import javax.jcr.Session;
-import javax.naming.OperationNotSupportedException;
-import javax.servlet.ServletException;
-
 public class UGCImportHelper {
-
 
     @Reference
     private ForumOperations forumOperations;
@@ -79,7 +70,8 @@ public class UGCImportHelper {
 
     private SocialResourceProvider resProvider;
 
-    public UGCImportHelper() {}
+    public UGCImportHelper() {
+    }
 
     public void setTallyService(final TallyOperationsService tallyOperationsService) {
         if (this.tallyOperationsService == null)
@@ -97,11 +89,10 @@ public class UGCImportHelper {
     }
 
     public Resource extractResource(final JsonParser parser, final SocialResourceProvider provider,
-                                       final ResourceResolver resolver, final String path)
-            throws IOException {
+        final ResourceResolver resolver, final String path) throws IOException {
         final Map<String, Object> properties = new HashMap<String, Object>();
 
-        while(parser.nextToken() != JsonToken.END_OBJECT) {
+        while (parser.nextToken() != JsonToken.END_OBJECT) {
             String name = parser.getCurrentName();
             parser.nextToken();
             JsonToken token = parser.getCurrentToken();
@@ -110,8 +101,9 @@ public class UGCImportHelper {
                 if (token.equals(JsonToken.START_OBJECT)) {
                     parser.nextToken();
                     final String childPath = path + "/" + parser.getCurrentName();
-                    parser.nextToken(); //should equal JsonToken.START_OBJECT
-                    final Resource childResource = extractResource(parser, provider, resolver, childPath); // should we do anything with this?
+                    parser.nextToken(); // should equal JsonToken.START_OBJECT
+                    final Resource childResource = extractResource(parser, provider, resolver, childPath); // should
+// we do anything with this?
                 }
             }
         }
@@ -120,27 +112,27 @@ public class UGCImportHelper {
     }
 
     public static Map<String, Object> extractSubmap(final JsonParser jsonParser) throws IOException {
-        jsonParser.nextToken(); //skip the START_OBJECT token
+        jsonParser.nextToken(); // skip the START_OBJECT token
         final Map<String, Object> subMap = new HashMap<String, Object>();
         while (!jsonParser.getCurrentToken().equals(JsonToken.END_OBJECT)) {
-            final String label = jsonParser.getCurrentName(); //get the current label
-            final JsonToken token = jsonParser.nextToken(); //get the current value
+            final String label = jsonParser.getCurrentName(); // get the current label
+            final JsonToken token = jsonParser.nextToken(); // get the current value
             if (!token.isScalarValue()) {
                 if (token.equals(JsonToken.START_OBJECT)) {
-                    //if the next token starts a new object, recurse into it
+                    // if the next token starts a new object, recurse into it
                     subMap.put(label, extractSubmap(jsonParser));
                 } else if (token.equals(JsonToken.START_ARRAY)) {
                     final List<String> subArray = new ArrayList<String>();
-                    jsonParser.nextToken(); //skip the START_ARRAY token
-                    while(!jsonParser.getCurrentToken().equals(JsonToken.END_ARRAY)) {
+                    jsonParser.nextToken(); // skip the START_ARRAY token
+                    while (!jsonParser.getCurrentToken().equals(JsonToken.END_ARRAY)) {
                         subArray.add(jsonParser.getValueAsString());
                         jsonParser.nextToken();
                     }
                     subMap.put(label, subArray);
-                    jsonParser.nextToken(); //skip the END_ARRAY token
+                    jsonParser.nextToken(); // skip the END_ARRAY token
                 }
             } else {
-                //either a string, boolean, or long value
+                // either a string, boolean, or long value
                 if (token.isNumeric()) {
                     subMap.put(label, jsonParser.getValueAsLong());
                 } else {
@@ -154,14 +146,14 @@ public class UGCImportHelper {
             }
             jsonParser.nextToken(); // next token will either be an "END_OBJECT" or a new label
         }
-        jsonParser.nextToken(); //skip the END_OBJECT token
+        jsonParser.nextToken(); // skip the END_OBJECT token
         return subMap;
     }
 
-    public static void extractTally(final Resource post, final JsonParser jsonParser, final SocialResourceProvider srp,
-                             final TallyOperationsService tallyOperationsService)
-        throws IOException, OperationException {
-        jsonParser.nextToken(); //should be start object, but would be end array if no objects were present
+    public static void extractTally(final Resource post, final JsonParser jsonParser,
+        final SocialResourceProvider srp, final TallyOperationsService tallyOperationsService) throws IOException,
+        OperationException {
+        jsonParser.nextToken(); // should be start object, but would be end array if no objects were present
         while (!jsonParser.getCurrentToken().equals(JsonToken.END_ARRAY)) {
             Long timestamp = null;
             String userIdentifier = null;
@@ -190,9 +182,8 @@ public class UGCImportHelper {
     }
 
     private static void createTally(final SocialResourceProvider srp, final Resource post, final String tallyType,
-                                    final String userIdentifier, final Long timestamp, final String response,
-                                    final TallyOperationsService tallyOperationsService)
-        throws PersistenceException, OperationException {
+        final String userIdentifier, final Long timestamp, final String response,
+        final TallyOperationsService tallyOperationsService) throws PersistenceException, OperationException {
 
         final ResourceResolver resolver = post.getResourceResolver();
         final Map<String, Object> properties = new HashMap<String, Object>();
@@ -236,18 +227,18 @@ public class UGCImportHelper {
         try {
             properties.put("timestamp", Long.toString(calendar.getTimeInMillis()));
             tallyOperationsService.setTallyResponse(tally, userIdentifier, resolver.adaptTo(Session.class), response,
-                    tallyType, properties);
+                tallyType, properties);
         } catch (final OperationException e) {
             throw new RuntimeException("Unable to set the tally response value: " + e.getMessage(), e);
         } catch (final IllegalArgumentException e) {
-            // We can ignore this. It means that the value set for the response in the migrated data is no longer valid.
+            // We can ignore this. It means that the value set for the response in the migrated data is no longer
+// valid.
             // This happens for "#neutral#" which used to be a valid response, but was taken out in later versions.
         }
     }
 
-    public void importQnaContent(final JsonParser jsonParser, final Resource resource,
-                                        final ResourceResolver resolver)
-            throws ServletException, IOException {
+    public void importQnaContent(final JsonParser jsonParser, final Resource resource, final ResourceResolver resolver)
+        throws ServletException, IOException {
         while (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
             extractTopic(jsonParser, resource, resolver, qnaForumOperations);
             jsonParser.nextToken(); // get the next token - presumably a start token
@@ -256,8 +247,7 @@ public class UGCImportHelper {
     }
 
     public void importForumContent(final JsonParser jsonParser, final Resource resource,
-                                          final ResourceResolver resolver)
-            throws ServletException, IOException {
+        final ResourceResolver resolver) throws ServletException, IOException {
         while (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
             jsonParser.nextToken(); // advance to first key in the object
             extractTopic(jsonParser, resource, resolver, forumOperations);
@@ -265,30 +255,33 @@ public class UGCImportHelper {
         }
         jsonParser.nextToken(); // skip end token
     }
+
     public void importCommentsContent(final JsonParser jsonParser, final Resource resource,
-                                        final ResourceResolver resolver) throws JsonParseException, IOException {
-        //not yet implemented
+        final ResourceResolver resolver) throws JsonParseException, IOException {
+        // not yet implemented
         jsonParser.skipChildren();
     }
+
     public void importJournalContent(final JsonParser jsonParser, final Resource resource,
-                                        final ResourceResolver resolver) throws JsonParseException, IOException {
-        //not yet implemented
+        final ResourceResolver resolver) throws JsonParseException, IOException {
+        // not yet implemented
         jsonParser.skipChildren();
     }
+
     public void importCalendarContent(final JsonParser jsonParser, final Resource resource,
-                                        final ResourceResolver resolver) throws JsonParseException, IOException {
-        //not yet implemented
+        final ResourceResolver resolver) throws JsonParseException, IOException {
+        // not yet implemented
         jsonParser.skipChildren();
     }
+
     public void importTallyContent(final JsonParser jsonParser, final Resource resource,
-                                        final ResourceResolver resolver) throws JsonParseException, IOException {
-        //not yet implemented
+        final ResourceResolver resolver) throws JsonParseException, IOException {
+        // not yet implemented
         jsonParser.skipChildren();
     }
 
     protected void extractTopic(final JsonParser jsonParser, final Resource resource,
-                                    final ResourceResolver resolver, final CommentOperations operations)
-            throws IOException, ServletException {
+        final ResourceResolver resolver, final CommentOperations operations) throws IOException, ServletException {
         if (jsonParser.getCurrentToken().equals(JsonToken.END_OBJECT)) {
             return; // replies could just be an empty object (i.e. "ugc:replies":{} ) in which case, do nothing
         }
@@ -305,7 +298,7 @@ public class UGCImportHelper {
                 JsonToken token = jsonParser.nextToken();
                 if (jsonParser.getCurrentToken().isScalarValue()) {
 
-                    //either a string, boolean, or long value
+                    // either a string, boolean, or long value
                     if (token.isNumeric()) {
                         properties.put(label, jsonParser.getValueAsLong());
                     } else {
@@ -323,17 +316,18 @@ public class UGCImportHelper {
                     }
                 } else if (label.equals(ContentTypeDefinitions.LABEL_ATTACHMENTS)) {
                     attachments = getAttachments(jsonParser);
-                } else if (label.equals(ContentTypeDefinitions.LABEL_REPLIES) ||
-                        label.equals(ContentTypeDefinitions.LABEL_TALLY) ||
-                        label.equals(ContentTypeDefinitions.LABEL_SUBNODES)) {
+                } else if (label.equals(ContentTypeDefinitions.LABEL_REPLIES)
+                        || label.equals(ContentTypeDefinitions.LABEL_TALLY)
+                        || label.equals(ContentTypeDefinitions.LABEL_SUBNODES)) {
                     // replies and sub-nodesALWAYS come after all other properties and attachments have been listed,
                     // so we can create the post now if we haven't already, and then dive in
                     if (post == null) {
                         try {
-                            post = createPost(resource, author, properties, attachments,
+                            post =
+                                createPost(resource, author, properties, attachments,
                                     resolver.adaptTo(Session.class), operations);
                             resProvider = SocialResourceUtils.getSocialResource(post).getResourceProvider();
-//                            resProvider.commit(resolver);
+// resProvider.commit(resolver);
                         } catch (Exception e) {
                             throw new ServletException(e.getMessage(), e);
                         }
@@ -379,11 +373,12 @@ public class UGCImportHelper {
                 } else if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
                     properties.put(label, UGCImportHelper.extractSubmap(jsonParser));
                 } else if (jsonParser.getCurrentToken().equals(JsonToken.START_ARRAY)) {
-                    jsonParser.nextToken(); //skip the START_ARRAY token
+                    jsonParser.nextToken(); // skip the START_ARRAY token
                     if (label.equals(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS)) {
                         while (!jsonParser.getCurrentToken().equals(JsonToken.END_ARRAY)) {
                             final String timestampLabel = jsonParser.getValueAsString();
-                            if (properties.containsKey(timestampLabel) && properties.get(timestampLabel) instanceof Long) {
+                            if (properties.containsKey(timestampLabel)
+                                    && properties.get(timestampLabel) instanceof Long) {
                                 final Calendar calendar = new GregorianCalendar();
                                 calendar.setTimeInMillis((Long) properties.get(timestampLabel));
                                 properties.put(timestampLabel, calendar.getTime());
@@ -397,7 +392,9 @@ public class UGCImportHelper {
                             jsonParser.nextToken();
                         }
                         String[] strings = new String[subArray.size()];
-                        for (int i=0; i<subArray.size(); i++) { strings[i] = subArray.get(i); }
+                        for (int i = 0; i < subArray.size(); i++) {
+                            strings[i] = subArray.get(i);
+                        }
                         properties.put(label, strings);
                     }
                 }
@@ -405,22 +402,25 @@ public class UGCImportHelper {
             }
             if (post == null) {
                 try {
-                    post = createPost(resource, author, properties, attachments, resolver.adaptTo(Session.class), operations);
+                    post =
+                        createPost(resource, author, properties, attachments, resolver.adaptTo(Session.class),
+                            operations);
                     resProvider = SocialResourceUtils.getSocialResource(post).getResourceProvider();
-//                    resProvider.commit(resolver);
+// resProvider.commit(resolver);
                 } catch (Exception e) {
                     throw new ServletException(e.getMessage(), e);
                 }
             }
         } else {
-            throw new IOException("Improperly formed JSON - expected an OBJECT_START token, but got " + jsonParser.getCurrentToken().toString());
+            throw new IOException("Improperly formed JSON - expected an OBJECT_START token, but got "
+                    + jsonParser.getCurrentToken().toString());
         }
     }
 
-    protected static Resource createPost(final Resource resource, final String author, final Map<String, Object> properties,
-                                         final List<DataSource> attachments, final Session session,
-                                         final CommentOperations operations) throws OperationException {
-        if(populateMessage(properties)) {
+    protected static Resource createPost(final Resource resource, final String author,
+        final Map<String, Object> properties, final List<DataSource> attachments, final Session session,
+        final CommentOperations operations) throws OperationException {
+        if (populateMessage(properties)) {
             return operations.create(resource, author, properties, attachments, session);
         } else {
             return null;
@@ -459,7 +459,6 @@ public class UGCImportHelper {
         JsonToken token = jsonParser.nextToken(); // skip START_ARRAY token
         String filename;
         String mimeType;
-        String data;
         InputStream inputStream;
         while (token.equals(JsonToken.START_OBJECT)) {
             filename = null;
@@ -471,7 +470,7 @@ public class UGCImportHelper {
                 final String label = jsonParser.getCurrentName();
                 jsonParser.nextToken();
                 if (label.equals("filename")) {
-                    filename = jsonParser.getValueAsString();
+                    filename = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
                 } else if (label.equals("jcr:mimeType")) {
                     mimeType = jsonParser.getValueAsString();
                 } else if (label.equals("jcr:data")) {
@@ -481,7 +480,8 @@ public class UGCImportHelper {
                 token = jsonParser.nextToken();
             }
             if (filename != null && mimeType != null && inputStream != null) {
-                attachments.add(new UGCImportHelper.AttachmentStruct(filename, inputStream, mimeType, databytes.length));
+                attachments.add(new UGCImportHelper.AttachmentStruct(filename, inputStream, mimeType,
+                    databytes.length));
             } else {
                 // TODO - log an error
             }
@@ -522,6 +522,7 @@ public class UGCImportHelper {
         public InputStream getInputStream() {
             return data;
         }
+
         /**
          * Returns the MIME type of the content.
          * @return content MIME type.
