@@ -56,8 +56,11 @@ import com.adobe.cq.social.ugcbase.core.SocialResourceUtils;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class UGCImportHelper {
+    private static final Logger LOGGER = LoggerFactory.getLogger(UGCImportHelper.class);
 
     @Reference
     private ForumOperations forumOperations;
@@ -226,7 +229,7 @@ public class UGCImportHelper {
         // Needed params:
         try {
             properties.put("timestamp", Long.toString(calendar.getTimeInMillis()));
-            tallyOperationsService.setTallyResponse(tally, userIdentifier, resolver.adaptTo(Session.class), response,
+            tallyOperationsService.setTallyResponse(tally.getTallyTarget(), userIdentifier, resolver.adaptTo(Session.class), response,
                 tallyType, properties);
         } catch (final OperationException e) {
             throw new RuntimeException("Unable to set the tally response value: " + e.getMessage(), e);
@@ -306,11 +309,16 @@ public class UGCImportHelper {
                         if (value.equals("true") || value.equals("false")) {
                             properties.put(label, jsonParser.getValueAsBoolean());
                         } else {
-                            properties.put(label, URLDecoder.decode(value, "UTF-8"));
-                            if (label.equals("userIdentifier")) {
-                                author = URLDecoder.decode(value, "UTF-8");
-                            } else if (label.equals("jcr:description")) {
-                                properties.put("message", URLDecoder.decode(value, "UTF-8"));
+                            final String decodedValue = URLDecoder.decode(value, "UTF-8");
+                            if (label.equals("language")) {
+                                properties.put("mtlanguage", decodedValue);
+                            } else {
+                                properties.put(label, decodedValue);
+                                if (label.equals("userIdentifier")) {
+                                    author = decodedValue;
+                                } else if (label.equals("jcr:description")) {
+                                    properties.put("message", decodedValue);
+                                }
                             }
                         }
                     }
