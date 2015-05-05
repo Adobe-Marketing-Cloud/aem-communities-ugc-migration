@@ -17,6 +17,9 @@
  **************************************************************************/
 package com.adobe.communities.ugc.migration.legacyExport;
 
+import static com.adobe.cq.social.tally.TallyConstants.RESPONSE_PROPERTY;
+import static com.adobe.cq.social.tally.TallyConstants.TIMESTAMP_PROPERTY;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -29,12 +32,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import com.adobe.cq.social.calendar.Event;
-import com.adobe.cq.social.journal.JournalEntry;
-import com.adobe.cq.social.storage.buckets.NestedBucketStorageSystem;
-import com.adobe.cq.social.tally.PollResponse;
-import com.adobe.cq.social.tally.ResponseValue;
-import com.adobe.cq.social.tally.TallyConstants;
+import javax.jcr.Node;
+import javax.jcr.NodeIterator;
+import javax.jcr.RepositoryException;
+
 import org.apache.commons.codec.binary.Base64;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
@@ -45,16 +46,11 @@ import org.apache.sling.commons.json.io.JSONWriter;
 
 import com.adobe.cq.social.commons.Comment;
 import com.adobe.cq.social.forum.api.Post;
-import com.adobe.cq.social.tally.Response;
-import com.adobe.cq.social.tally.Vote;
-import com.adobe.cq.social.tally.Voting;
-
-import javax.jcr.Node;
-import javax.jcr.NodeIterator;
-import javax.jcr.RepositoryException;
-
-import static com.adobe.cq.social.tally.TallyConstants.RESPONSE_PROPERTY;
-import static com.adobe.cq.social.tally.TallyConstants.TIMESTAMP_PROPERTY;
+import com.adobe.cq.social.journal.JournalEntry;
+import com.adobe.cq.social.storage.buckets.NestedBucketStorageSystem;
+import com.adobe.cq.social.tally.PollResponse;
+import com.adobe.cq.social.tally.ResponseValue;
+import com.adobe.cq.social.tally.TallyConstants;
 
 //import com.adobe.communities.ugc.migration.legacyExport.ContentTypeDefinitions;
 
@@ -187,22 +183,24 @@ public class UGCExportHelper {
             throws JSONException, UnsupportedEncodingException {
 
         final Map<String, Map<Long, ResponseValue>> responses = getTallyResponses(rootNode);
-        for (final String userIdentifier : responses.keySet()) {
-            for (final Map.Entry<Long, ResponseValue> entry : responses.get(userIdentifier).entrySet()) {
-                final JSONWriter voteObject = responseArray.object();
-                final String response = entry.getValue().getResponseValue();
-                voteObject.key("timestamp");
-                voteObject.value(entry.getKey());
-                voteObject.key("response");
-                voteObject.value(URLEncoder.encode(response, "UTF-8"));
-                voteObject.key("userIdentifier");
-                voteObject.value(URLEncoder.encode(userIdentifier, "UTF-8"));
-                if (tallyType != null) {
-                    // for the purposes of this export, tallyType is fixed
-                    voteObject.key("tallyType");
-                    voteObject.value(tallyType);
+        if (null != responses) {
+            for (final String userIdentifier : responses.keySet()) {
+                for (final Map.Entry<Long, ResponseValue> entry : responses.get(userIdentifier).entrySet()) {
+                    final JSONWriter voteObject = responseArray.object();
+                    final String response = entry.getValue().getResponseValue();
+                    voteObject.key("timestamp");
+                    voteObject.value(entry.getKey());
+                    voteObject.key("response");
+                    voteObject.value(URLEncoder.encode(response, "UTF-8"));
+                    voteObject.key("userIdentifier");
+                    voteObject.value(URLEncoder.encode(userIdentifier, "UTF-8"));
+                    if (tallyType != null) {
+                        // for the purposes of this export, tallyType is fixed
+                        voteObject.key("tallyType");
+                        voteObject.value(tallyType);
+                    }
+                    voteObject.endObject();
                 }
-                voteObject.endObject();
             }
         }
     }

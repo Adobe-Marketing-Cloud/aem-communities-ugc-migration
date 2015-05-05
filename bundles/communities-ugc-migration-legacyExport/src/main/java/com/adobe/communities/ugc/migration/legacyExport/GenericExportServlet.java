@@ -17,10 +17,22 @@
  **************************************************************************/
 package com.adobe.communities.ugc.migration.legacyExport;
 
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import javax.servlet.ServletException;
 
@@ -44,55 +56,108 @@ import com.adobe.cq.social.forum.api.Forum;
 import com.adobe.cq.social.forum.api.Post;
 import com.adobe.cq.social.journal.Journal;
 import com.adobe.cq.social.journal.JournalEntry;
-
-//import com.adobe.cq.social.qna.api.QnaPost;
+import org.apache.commons.io.IOUtils;
 
 @Component(label = "UGC Exporter for all UGC Data Types",
-        description = "Moves any ugc data into json files for storage or re-import", specVersion = "1.0")
+        description = "Moves any ugc data into a zip archive for storage or re-import", specVersion = "1.0")
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/ugc/export")})
 
 public class GenericExportServlet extends SlingSafeMethodsServlet {
 
     Writer responseWriter;
+    ZipOutputStream zip;
+    Map<String, Boolean> entries;
     @Override
     protected void doGet(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
             throws ServletException, IOException {
 
-        responseWriter = response.getWriter();
-        final JSONWriter writer = new JSONWriter(responseWriter);
-
+        if (!request.getRequestParameterMap().containsKey("path")) {
+            throw new ServletException("No path specified for export. Exiting.");
+        }
         final String path = request.getRequestParameter("path").getString();
-
+        response.setContentType("application/octet-stream");
+        final String headerKey = "Content-Disposition";
+        final String headerValue = "attachment; filename=\"export.zip\"";
+        response.setHeader(headerKey, headerValue);
         final Resource resource = request.getResourceResolver().getResource(path);
         if (resource == null) {
             throw new ServletException("Could not find a valid resource for export");
         }
+        entries = new HashMap<String, Boolean>();
+        File outFile = null;
         try {
-            writer.object();
-            exportContent(writer, resource, path);
-            writer.endObject();
-        } catch (final JSONException e) {
-            throw new ServletException(e);
+            outFile = File.createTempFile(UUID.randomUUID().toString(), ".zip");
+            if (!outFile.canWrite()) {
+                throw new ServletException("Cannot write to specified output file");
+            }
+            FileOutputStream fos = new FileOutputStream(outFile);
+            BufferedOutputStream bos = new BufferedOutputStream(fos);
+            zip = new ZipOutputStream(bos);
+            OutputStream outStream = null;
+            InputStream inStream = null;
+            try {
+                exportContent(resource, path);
+                IOUtils.closeQuietly(zip);
+                IOUtils.closeQuietly(bos);
+                IOUtils.closeQuietly(fos);
+                // obtains response's output stream
+                outStream = response.getOutputStream();
+                inStream = new FileInputStream(outFile);
+                // copy from file to output
+                IOUtils.copy(inStream, outStream);
+                IOUtils.closeQuietly(inStream);
+                IOUtils.closeQuietly(outStream);
+            } catch (final IOException e) {
+                IOUtils.closeQuietly(zip);
+                IOUtils.closeQuietly(bos);
+                IOUtils.closeQuietly(fos);
+                IOUtils.closeQuietly(inStream);
+                IOUtils.closeQuietly(outStream);
+                throw new ServletException(e);
+            } catch (Exception e) {
+                throw new ServletException(e);
+            }
+        } finally {
+            if (outFile != null) {
+                outFile.delete();
+            }
         }
     }
 
-    protected void exportContent(final JSONWriter writer, final Resource rootNode, final String rootPath)
+    protected void exportContent(Resource rootNode, final String rootPath)
             throws IOException, ServletException {
 
         String relPath = rootNode.getPath().substring(rootNode.getPath().indexOf(rootPath)+rootPath.length());
+        String entryName = relPath.isEmpty() ? ".root.json" : relPath + ".json";
+        responseWriter = new OutputStreamWriter(zip);
+        JSONWriter writer = new JSONWriter(responseWriter);
+        writer.setTidy(true);
+        if (rootNode.isResourceType(Comment.RESOURCE_TYPE)) {
+        //if we're traversing a tree and come to a comment, we need to be looking at the comment system's resource instead
+        // of the resource for the comment itself as we continue our dive.
+            Comment comment = rootNode.adaptTo(Comment.class);
+            if (null != comment) {
+                CommentSystem commentSystem = comment.getCommentSystem();
+                if (entries.containsKey(commentSystem.getPath())) { //make sure to only attempt export once
+                    return;
+                }
+                rootNode = commentSystem.getResource();
+                entries.put(commentSystem.getPath(), true);
+            }
+        }
         try {
             if (rootNode.isResourceType("social/qna/components/qnaforum")) {
                 final Forum forum = rootNode.adaptTo(Forum.class);
                 if (forum == null) { //avoid throwing a null pointer exception
                     for (final Resource resource : rootNode.getChildren()) {
-                        exportContent(writer, resource, rootPath);
+                        exportContent(resource, rootPath);
                     }
                     return;
                 }
                 final Iterator<Post> posts = forum.getTopics();
                 if (posts.hasNext()) {
-                    writer.key(relPath);
+                    zip.putNextEntry(new ZipEntry(entryName));
                     final JSONWriter forumObject = writer.object();
                     forumObject.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
                     forumObject.value(ContentTypeDefinitions.LABEL_QNA_FORUM);
@@ -108,19 +173,21 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                     }
                     forumObject.endObject();
                     writer.endObject();
+                    responseWriter.flush();
+                    zip.closeEntry();
                 }
             } else if (rootNode.isResourceType(Forum.RESOURCE_TYPE)) {
 
                 final Forum forum = rootNode.adaptTo(Forum.class);
                 if (forum == null) { //avoid throwing a null pointer exception
                     for (final Resource resource : rootNode.getChildren()) {
-                        exportContent(writer, resource, rootPath);
+                        exportContent(resource, rootPath);
                     }
                     return;
                 }
                 final Iterator<Post> posts = forum.getTopics();
                 if (posts.hasNext()) {
-                    writer.key(relPath);
+                    zip.putNextEntry(new ZipEntry(entryName));
                     final JSONWriter forumObject = writer.object();
                     forumObject.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
                     forumObject.value(ContentTypeDefinitions.LABEL_FORUM);
@@ -136,6 +203,8 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                     }
                     forumObject.endObject();
                     writer.endObject();
+                    responseWriter.flush();
+                    zip.closeEntry();
                 }
             } else if (rootNode.isResourceType(CommentSystem.RESOURCE_TYPE)) {
                 if (rootNode.getName().equals("entrycomments")) {
@@ -144,13 +213,13 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                 final CommentSystem commentSystem = rootNode.adaptTo(CommentSystem.class);
                 if (commentSystem == null) { //avoid throwing a null pointer exception
                     for (final Resource resource : rootNode.getChildren()) {
-                        exportContent(writer, resource, rootPath);
+                        exportContent(resource, rootPath);
                     }
                     return;
                 }
                 final Iterator<Comment> comments = commentSystem.getComments();
                 if (comments.hasNext()) {
-                    writer.key(relPath);
+                    zip.putNextEntry(new ZipEntry(entryName));
                     final JSONWriter commentsNode = writer.object();
                     commentsNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
                     commentsNode.value(ContentTypeDefinitions.LABEL_COMMENTS);
@@ -165,6 +234,39 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                     }
                     commentsNode.endObject();
                     writer.endObject();
+                    responseWriter.flush();
+                    zip.closeEntry();
+                }
+            } else if (rootNode.isResourceType(Comment.RESOURCE_TYPE)) {
+                Comment comment = rootNode.adaptTo(Comment.class);
+                if (null != comment) {
+                    CommentSystem commentSystem = comment.getCommentSystem();
+                    final Iterator<Comment> comments = commentSystem.getComments();
+                    final String path = commentSystem.getPath();
+                    entryName = path;//.substring(rootNode.getPath().indexOf(rootPath)+rootPath.length());
+                    if (entries.containsKey(entryName)) {
+                        return;
+                    }
+                    if (comments.hasNext()) {
+                        entries.put(entryName, true);
+                        zip.putNextEntry(new ZipEntry(entryName));
+                        final JSONWriter commentsNode = writer.object();
+                        commentsNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
+                        commentsNode.value(ContentTypeDefinitions.LABEL_COMMENTS);
+                        commentsNode.key(ContentTypeDefinitions.LABEL_CONTENT);
+                        commentsNode.object();
+                        while (comments.hasNext()) {
+                            comment = comments.next();
+                            commentsNode.key(comment.getId());
+                            final JSONWriter commentObject = commentsNode.object();
+                            UGCExportHelper.extractComment(commentObject, comment, rootNode.getResourceResolver(), responseWriter);
+                            commentsNode.endObject();
+                        }
+                        commentsNode.endObject();
+                        writer.endObject();
+                        responseWriter.flush();
+                        zip.closeEntry();
+                    }
                 }
             } else if (rootNode.isResourceType(CalendarConstants.RT_CALENDAR_COMPONENT) ||
                        rootNode.isResourceType(CalendarConstants.MIX_CALENDAR) ||
@@ -172,7 +274,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                 CqCalendar calendar = rootNode.adaptTo(CqCalendar.class);
                 if (calendar == null) { //avoid throwing a null pointer exception if this node isn't actually a calendar
                     for (final Resource resource : rootNode.getChildren()) {
-                        exportContent(writer, resource, rootPath);
+                        exportContent(resource, rootPath);
                     }
                     return;
                 }
@@ -180,7 +282,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                 if (!events.hasNext()) {
                     return;
                 }
-                writer.key(relPath);
+                zip.putNextEntry(new ZipEntry(entryName));
                 final JSONWriter calendarNode = writer.object();
                 calendarNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
                 calendarNode.value(ContentTypeDefinitions.LABEL_CALENDAR);
@@ -193,18 +295,12 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                 }
                 calendarNode.endArray();
                 writer.endObject();
+                responseWriter.flush();
+                zip.closeEntry();
             } else if (rootNode.isResourceType("social/tally/components/poll")) { // No constant defined in 5.6.1
-                writer.key(relPath);
-                final JSONWriter tallyNode = writer.object();
-                tallyNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
-                tallyNode.value(ContentTypeDefinitions.LABEL_TALLY);
-                tallyNode.key(ContentTypeDefinitions.LABEL_CONTENT);
-                final JSONWriter responseArray = tallyNode.array();
-                UGCExportHelper.extractTally(responseArray, rootNode, "Poll");
-                tallyNode.endArray();
-                writer.endObject();
+                return; //we know what it is, but there's no antecedent to put it into for 6.1
             } else if (rootNode.isResourceType("social/tally/components/voting")) { // No constant defined in 5.6.1
-                writer.key(relPath);
+                zip.putNextEntry(new ZipEntry(entryName));
                 final JSONWriter tallyNode = writer.object();
                 tallyNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
                 tallyNode.value(ContentTypeDefinitions.LABEL_TALLY);
@@ -213,8 +309,10 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                 UGCExportHelper.extractTally(responseArray, rootNode, "Voting");
                 tallyNode.endArray();
                 writer.endObject();
+                responseWriter.flush();
+                zip.closeEntry();
             } else if (rootNode.isResourceType("social/tally/components/rating")) { // No constant defined in 5.6.1
-                writer.key(relPath);
+                zip.putNextEntry(new ZipEntry(entryName));
                 final JSONWriter tallyNode = writer.object();
                 tallyNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
                 tallyNode.value(ContentTypeDefinitions.LABEL_TALLY);
@@ -223,15 +321,17 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                 UGCExportHelper.extractTally(responseArray, rootNode, "Rating");
                 tallyNode.endArray();
                 writer.endObject();
+                responseWriter.flush();
+                zip.closeEntry();
             } else if (rootNode.isResourceType("social/journal/components/entrylist")) {
                 final Journal journal = rootNode.adaptTo(Journal.class);
                 if (journal == null) { //avoid throwing a null pointer exception
                     for (final Resource resource : rootNode.getChildren()) {
-                        exportContent(writer, resource, rootPath);
+                        exportContent(resource, rootPath);
                     }
                     return;
                 }
-                writer.key(relPath);
+                zip.putNextEntry(new ZipEntry(entryName));
                 final JSONWriter journalNode = writer.object();
                 journalNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
                 journalNode.value(ContentTypeDefinitions.LABEL_JOURNAL);
@@ -244,9 +344,11 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                 }
                 journalNode.endArray();
                 writer.endObject();
+                responseWriter.flush();
+                zip.closeEntry();
             } else {
                 for (final Resource resource : rootNode.getChildren()) {
-                    exportContent(writer, resource, rootPath);
+                    exportContent(resource, rootPath);
                 }
             }
         } catch (final JSONException e) {
