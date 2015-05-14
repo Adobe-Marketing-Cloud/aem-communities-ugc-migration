@@ -22,42 +22,58 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLDecoder;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 
 import javax.activation.DataSource;
+import javax.jcr.Node;
+import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.servlet.ServletException;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.felix.scr.annotations.Reference;
+import org.apache.sling.api.resource.ModifyingResourceProvider;
 import org.apache.sling.api.resource.PersistenceException;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
+import org.apache.sling.commons.json.JSONException;
+import org.apache.sling.commons.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
+import com.adobe.cq.social.calendar.CalendarConstants;
+import com.adobe.cq.social.calendar.client.endpoints.CalendarOperations;
+import com.adobe.cq.social.calendar.client.endpoints.CalendarRequestConstants;
 import com.adobe.cq.social.commons.Comment;
 import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
 import com.adobe.cq.social.forum.client.endpoints.ForumOperations;
 import com.adobe.cq.social.qna.client.endpoints.QnaForumOperations;
 import com.adobe.cq.social.scf.OperationException;
 import com.adobe.cq.social.srp.SocialResourceProvider;
+import com.adobe.cq.social.srp.config.SocialResourceConfiguration;
 import com.adobe.cq.social.tally.Poll;
 import com.adobe.cq.social.tally.Tally;
 import com.adobe.cq.social.tally.Voting;
 import com.adobe.cq.social.tally.client.api.RatingSocialComponent;
 import com.adobe.cq.social.tally.client.api.VotingSocialComponent;
 import com.adobe.cq.social.tally.client.endpoints.TallyOperationsService;
+import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.adobe.cq.social.ugcbase.core.SocialResourceUtils;
+import com.adobe.granite.security.user.UserProperties;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class UGCImportHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(UGCImportHelper.class);
@@ -69,7 +85,16 @@ public class UGCImportHelper {
     private QnaForumOperations qnaForumOperations;
 
     @Reference
+    private CommentOperations commentOperations;
+
+    @Reference
     private TallyOperationsService tallyOperationsService;
+
+    @Reference
+    private CalendarOperations calendarOperations;
+
+    @Reference
+    private SocialUtils socialUtils;
 
     private SocialResourceProvider resProvider;
 
@@ -86,9 +111,24 @@ public class UGCImportHelper {
             this.forumOperations = forumOperations;
     }
 
+    public void setCommentOperations(final CommentOperations commentOperations) {
+        if (this.commentOperations == null)
+            this.commentOperations = commentOperations;
+    }
+
     public void setQnaForumOperations(final QnaForumOperations qnaForumOperations) {
         if (this.qnaForumOperations == null)
             this.qnaForumOperations = qnaForumOperations;
+    }
+
+    public void setCalendarOperations(final CalendarOperations calendarOperations) {
+        if (this.calendarOperations == null)
+            this.calendarOperations = calendarOperations;
+    }
+
+    public void setSocialUtils(final SocialUtils socialUtils) {
+        if (this.socialUtils == null)
+            this.socialUtils = socialUtils;
     }
 
     public Resource extractResource(final JsonParser parser, final SocialResourceProvider provider,
@@ -154,7 +194,7 @@ public class UGCImportHelper {
     }
 
     public static void extractTally(final Resource post, final JsonParser jsonParser,
-        final SocialResourceProvider srp, final TallyOperationsService tallyOperationsService) throws IOException,
+        final ModifyingResourceProvider srp, final TallyOperationsService tallyOperationsService) throws IOException,
         OperationException {
         jsonParser.nextToken(); // should be start object, but would be end array if no objects were present
         while (!jsonParser.getCurrentToken().equals(JsonToken.END_ARRAY)) {
@@ -162,29 +202,35 @@ public class UGCImportHelper {
             String userIdentifier = null;
             String response = null;
             String tallyType = null;
-            jsonParser.nextToken();
+            jsonParser.nextToken(); // should make current token by "FIELD_NAME" but could be END_OBJECT if this were
+// an empty object
             while (!jsonParser.getCurrentToken().equals(JsonToken.END_OBJECT)) {
                 final String label = jsonParser.getCurrentName();
-                jsonParser.nextToken();
+                jsonParser.nextToken(); // should be FIELD_VALUE
                 if (label.equals("timestamp")) {
                     timestamp = jsonParser.getValueAsLong();
-                } else if (label.equals("response")) {
-                    response = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
-                } else if (label.equals("userIdentifier")) {
-                    userIdentifier = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
-                } else if (label.equals("tallyType")) {
-                    tallyType = jsonParser.getValueAsString();
+                } else {
+                    final String responseValue = jsonParser.getValueAsString();
+                    if (label.equals("response")) {
+                        response = URLDecoder.decode(responseValue, "UTF-8");
+                    } else if (label.equals("userIdentifier")) {
+                        userIdentifier = URLDecoder.decode(responseValue, "UTF-8");
+                    } else if (label.equals("tallyType")) {
+                        tallyType = responseValue;
+                    }
                 }
-                jsonParser.nextToken();
+                jsonParser.nextToken(); // should make current token be "FIELD_NAME" unless we're at the end of our
+// loop and it's now "END_OBJECT" instead
             }
             if (timestamp != null && userIdentifier != null && response != null && tallyType != null) {
                 createTally(srp, post, tallyType, userIdentifier, timestamp, response, tallyOperationsService);
             }
-            jsonParser.nextToken();
+            jsonParser.nextToken(); // may advance to "START_OBJECT" if we're not finished yet, but might be
+// "END_ARRAY" now
         }
     }
 
-    private static void createTally(final SocialResourceProvider srp, final Resource post, final String tallyType,
+    private static void createTally(final ModifyingResourceProvider srp, final Resource post, final String tallyType,
         final String userIdentifier, final Long timestamp, final String response,
         final TallyOperationsService tallyOperationsService) throws PersistenceException, OperationException {
 
@@ -229,8 +275,8 @@ public class UGCImportHelper {
         // Needed params:
         try {
             properties.put("timestamp", Long.toString(calendar.getTimeInMillis()));
-            tallyOperationsService.setTallyResponse(tally.getTallyTarget(), userIdentifier, resolver.adaptTo(Session.class), response,
-                tallyType, properties);
+            tallyOperationsService.setTallyResponse(tally.getTallyTarget(), userIdentifier,
+                resolver.adaptTo(Session.class), response, tallyType, properties);
         } catch (final OperationException e) {
             throw new RuntimeException("Unable to set the tally response value: " + e.getMessage(), e);
         } catch (final IllegalArgumentException e) {
@@ -242,27 +288,47 @@ public class UGCImportHelper {
 
     public void importQnaContent(final JsonParser jsonParser, final Resource resource, final ResourceResolver resolver)
         throws ServletException, IOException {
-        while (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
-            extractTopic(jsonParser, resource, resolver, qnaForumOperations);
-            jsonParser.nextToken(); // get the next token - presumably a start token
+        if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
+            jsonParser.nextToken(); // advance to first key in the object - should be the id value of the old post
+            while (jsonParser.getCurrentToken().equals(JsonToken.FIELD_NAME)) {
+                extractTopic(jsonParser, resource, resolver, qnaForumOperations);
+                jsonParser.nextToken(); // get the next token - presumably a field name for the next post
+            }
+            jsonParser.nextToken(); // skip end token
+        } else {
+            throw new IOException("Improperly formed JSON - expected an OBJECT_START token, but got "
+                    + jsonParser.getCurrentToken().toString());
         }
-        jsonParser.nextToken(); // skip end token
     }
 
     public void importForumContent(final JsonParser jsonParser, final Resource resource,
         final ResourceResolver resolver) throws ServletException, IOException {
-        while (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
-            jsonParser.nextToken(); // advance to first key in the object
-            extractTopic(jsonParser, resource, resolver, forumOperations);
-            jsonParser.nextToken(); // get the next token - presumably a start token
+        if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
+            jsonParser.nextToken(); // advance to first key in the object - should be the id value of the old post
+            while (jsonParser.getCurrentToken().equals(JsonToken.FIELD_NAME)) {
+                extractTopic(jsonParser, resource, resolver, forumOperations);
+                jsonParser.nextToken(); // get the next token - presumably a field name for the next post
+            }
+            jsonParser.nextToken(); // skip end token
+        } else {
+            throw new IOException("Improperly formed JSON - expected an OBJECT_START token, but got "
+                    + jsonParser.getCurrentToken().toString());
         }
-        jsonParser.nextToken(); // skip end token
     }
 
     public void importCommentsContent(final JsonParser jsonParser, final Resource resource,
-        final ResourceResolver resolver) throws JsonParseException, IOException {
-        // not yet implemented
-        jsonParser.skipChildren();
+        final ResourceResolver resolver) throws ServletException, IOException {
+        if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
+            jsonParser.nextToken(); // advance to first key in the object - should be the id value of the old post
+            while (jsonParser.getCurrentToken().equals(JsonToken.FIELD_NAME)) {
+                extractTopic(jsonParser, resource, resolver, commentOperations);
+                jsonParser.nextToken(); // get the next token - presumably a field name for the next post
+            }
+            jsonParser.nextToken(); // skip end token
+        } else {
+            throw new IOException("Improperly formed JSON - expected an OBJECT_START token, but got "
+                    + jsonParser.getCurrentToken().toString());
+        }
     }
 
     public void importJournalContent(final JsonParser jsonParser, final Resource resource,
@@ -272,15 +338,33 @@ public class UGCImportHelper {
     }
 
     public void importCalendarContent(final JsonParser jsonParser, final Resource resource,
-        final ResourceResolver resolver) throws JsonParseException, IOException {
-        // not yet implemented
-        jsonParser.skipChildren();
+        final ResourceResolver resolver) throws JSONException, IOException {
+        if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
+            while (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
+                extractEvent(jsonParser, resource, resolver);
+                jsonParser.nextToken(); // get the next token - either a start object token or an end array token
+            }
+        } else {
+            throw new IOException("Improperly formed JSON - expected an OBJECT_START token, but got "
+                    + jsonParser.getCurrentToken().toString());
+        }
     }
 
     public void importTallyContent(final JsonParser jsonParser, final Resource resource,
-        final ResourceResolver resolver) throws JsonParseException, IOException {
-        // not yet implemented
-        jsonParser.skipChildren();
+        final ResourceResolver resolver) throws OperationException, IOException {
+
+        SocialResourceConfiguration config = socialUtils.getStorageConfig(resource);
+        final String rootPath = config.getAsiPath();
+        resProvider =
+            SocialResourceUtils.getSocialResource(resource.getResourceResolver().getResource(rootPath))
+                .getResourceProvider();
+        if (jsonParser.getCurrentToken().equals(JsonToken.START_ARRAY)) {
+            extractTally(resource, jsonParser, resProvider, tallyOperationsService);
+            jsonParser.nextToken(); // get the next token - either a start object token or an end array token
+        } else {
+            throw new IOException("Improperly formed JSON - expected an START_ARRAY token, but got "
+                    + jsonParser.getCurrentToken().toString());
+        }
     }
 
     protected void extractTopic(final JsonParser jsonParser, final Resource resource,
@@ -461,6 +545,61 @@ public class UGCImportHelper {
         return true;
     }
 
+    protected void extractEvent(final JsonParser jsonParser, final Resource resource, final ResourceResolver resolver)
+        throws JSONException {
+// calendarOperations.createEvent(final Resource target, UserProperties up, final Map<String, Object> requestParams)
+        UserProperties up = null; // resolver.adaptTo(UserProperties.class);
+        final JSONObject requestParams = new JSONObject();
+        try {
+            jsonParser.nextToken();
+            JsonToken token = jsonParser.getCurrentToken();
+            while (token.equals(JsonToken.FIELD_NAME)) {
+                String field = jsonParser.getCurrentName();
+                jsonParser.nextToken();
+
+                if (field.equals(CalendarConstants.PN_START) || field.equals(CalendarConstants.PN_END)) {
+                    final Long value = jsonParser.getValueAsLong();
+                    final Calendar calendar = new GregorianCalendar();
+                    calendar.setTimeInMillis(value);
+                    final Date date = calendar.getTime();
+                    final TimeZone tz = TimeZone.getTimeZone("UTC");
+                    // this is the ISO-8601 format expected by the CalendarOperations object
+                    final DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm+00:00");
+                    df.setTimeZone(tz);
+                    if (field.equals(CalendarConstants.PN_START)) {
+                        requestParams.put(CalendarRequestConstants.START_DATE, df.format(date));
+                    } else {
+                        requestParams.put(CalendarRequestConstants.END_DATE, df.format(date));
+                    }
+                } else if (field.equals(CalendarRequestConstants.TAGS)) {
+                    // TODO - handle tags correctly
+                } else if (field.equals("jcr:createdBy")) {
+                    final String value = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
+                    up = new AuthIDProperties(value);
+                } else if (field.equals(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS)) {
+                    jsonParser.skipChildren(); // we do nothing with these because they're going to be put into json
+                } else {
+                    try {
+                        final String value = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
+                        requestParams.put(field, value);
+                    } catch (NullPointerException e) {
+                        throw e;
+                    }
+                }
+                token = jsonParser.nextToken();
+            }
+        } catch (IOException e) {
+            //
+        }
+        try {
+            Map<String, Object> eventParams = new HashMap<String, Object>();
+            eventParams.put("event", requestParams.toString());
+            calendarOperations.createEvent(resource, up, eventParams);
+        } catch (OperationException e) {
+            e.printStackTrace();
+        }
+    }
+
     protected static List<DataSource> getAttachments(final JsonParser jsonParser) throws IOException {
         // an attachment has only 3 fields - jcr:data, filename, jcr:mimeType
         List<DataSource> attachments = new ArrayList<DataSource>();
@@ -553,6 +692,83 @@ public class UGCImportHelper {
          */
         public long getSize() {
             return size;
+        }
+    }
+
+    /**
+     * I know - this is a lot of code for such a tiny function, but better here than in the method which uses it.
+     */
+    private class AuthIDProperties implements UserProperties {
+
+        private String value;
+
+        public AuthIDProperties(final String authID) {
+            value = authID;
+        }
+
+        @Override
+        public String getAuthorizableID() {
+            return value;
+        }
+
+        @Override
+        public String getAuthorizablePath() {
+            return null;
+        }
+
+        @Override
+        public Node getNode() {
+            return null;
+        }
+
+        @Override
+        public String[] getPropertyNames() throws RepositoryException {
+            return new String[0];
+        }
+
+        @Override
+        public String[] getPropertyNames(String s) throws RepositoryException {
+            return new String[0];
+        }
+
+        @Override
+        public String getProperty(String s) throws RepositoryException {
+            return null;
+        }
+
+        @Override
+        public <T> T getProperty(String s, T t, Class<T> tClass) throws RepositoryException {
+            return null;
+        }
+
+        @Override
+        public Resource getResource(String s) throws RepositoryException {
+            return null;
+        }
+
+        @Override
+        public Iterator<Resource> getResources(String s) throws RepositoryException {
+            return null;
+        }
+
+        @Override
+        public String getResourcePath(String s, String s2, String s3) throws RepositoryException {
+            return null;
+        }
+
+        @Override
+        public String getDisplayName() throws RepositoryException {
+            return null;
+        }
+
+        @Override
+        public String getDisplayName(String s) throws RepositoryException {
+            return null;
+        }
+
+        @Override
+        public boolean isGroupProperties() {
+            return false;
         }
     }
 }

@@ -28,7 +28,7 @@ import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
 import com.adobe.cq.social.qna.client.endpoints.QnaForumOperations;
 
 @Component(label = "UGC Importer for QnA Data",
-        description = "Moves QnA data within json files into the active SocialResourceProvider", specVersion = "1.0",
+        description = "Moves QnA data within json files into the active SocialResourceProvider", specVersion = "1.1",
         immediate = true)
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/qna/import")})

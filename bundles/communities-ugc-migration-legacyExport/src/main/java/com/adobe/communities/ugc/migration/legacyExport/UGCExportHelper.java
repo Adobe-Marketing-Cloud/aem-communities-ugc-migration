@@ -43,6 +43,7 @@ import org.apache.sling.api.resource.ValueMap;
 import org.apache.sling.commons.json.JSONArray;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.io.JSONWriter;
+import org.apache.sling.jcr.resource.JcrResourceConstants;
 
 import com.adobe.cq.social.commons.Comment;
 import com.adobe.cq.social.forum.api.Post;
@@ -74,8 +75,9 @@ public class UGCExportHelper {
             object.endObject();
         }
     }
+
     public static void extractAttachment(final Writer ioWriter, final JSONWriter writer, final Resource node)
-            throws JSONException, UnsupportedEncodingException {
+        throws JSONException, UnsupportedEncodingException {
         Resource contentNode = node.getChild("jcr:content");
         if (contentNode == null) {
             writer.key(ContentTypeDefinitions.LABEL_ERROR);
@@ -140,7 +142,7 @@ public class UGCExportHelper {
                 while (userNodesInBucket.hasNext()) {
                     final Node userNode = userNodesInBucket.nextNode();
                     final NestedBucketStorageSystem userBucketSystem =
-                            getBucketSystem(resolver.getResource(userNode.getPath()));
+                        getBucketSystem(resolver.getResource(userNode.getPath()));
                     final Iterator<Resource> userBuckets = userBucketSystem.listBuckets();
                     final Map<Long, ResponseValue> userReturnValue = new HashMap<Long, ResponseValue>();
                     while (userBuckets.hasNext()) {
@@ -149,20 +151,21 @@ public class UGCExportHelper {
                             final Node responseNode = userResponses.nextNode();
                             final Long responseTimestamp = responseNode.getProperty(TIMESTAMP_PROPERTY).getLong();
                             userReturnValue.put(responseTimestamp,
-                                    new PollResponse(responseNode.getProperty(RESPONSE_PROPERTY).getString()));
+                                new PollResponse(responseNode.getProperty(RESPONSE_PROPERTY).getString()));
                         }
                     }
                     returnValue.put(userNode.getName(), userReturnValue);
                 }
             } catch (final RepositoryException e) {
-//                log.error("Error trying to read user responses from bucket in ", bucketResource.getPath(), e);
+// log.error("Error trying to read user responses from bucket in ", bucketResource.getPath(), e);
             }
         }
         return returnValue;
     }
+
     /**
-     * Need to do this because the responses that tally returns don't actually link users with their response values. In
-     * order to do an export under the legacy code, we have to explicitly handle the bucketing system.
+     * Need to do this because the responses that tally returns don't actually link users with their response values.
+     * In order to do an export under the legacy code, we have to explicitly handle the bucketing system.
      * @param resource
      * @return
      */
@@ -180,7 +183,7 @@ public class UGCExportHelper {
     }
 
     public static void extractTally(final JSONWriter responseArray, final Resource rootNode, final String tallyType)
-            throws JSONException, UnsupportedEncodingException {
+        throws JSONException, UnsupportedEncodingException {
 
         final Map<String, Map<Long, ResponseValue>> responses = getTallyResponses(rootNode);
         if (null != responses) {
@@ -205,9 +208,8 @@ public class UGCExportHelper {
         }
     }
 
-
     public static void extractComment(final JSONWriter writer, final Comment post, final ResourceResolver resolver,
-                                    final Writer responseWriter) throws JSONException, IOException {
+        final Writer responseWriter) throws JSONException, IOException {
 
         final ValueMap vm = post.getProperties();
         final JSONArray timestampFields = new JSONArray();
@@ -265,10 +267,10 @@ public class UGCExportHelper {
             for (final Resource subNode : childNodes) {
                 final String nodeName = subNode.getName();
                 if (nodeName.matches("^[0-9]+" + Post.POST_POSTFIX + "$")) {
-                    continue; //this is a folder of replies, which will be picked up lower down
+                    continue; // this is a folder of replies, which will be picked up lower down
                 }
                 if (nodeName.equals("attachments") || nodeName.equals("votes")) {
-                    continue; //already handled attachments and votes up above
+                    continue; // already handled attachments and votes up above
                 }
                 object.key(nodeName);
                 UGCExportHelper.extractSubNode(object.object(), subNode);
@@ -291,8 +293,8 @@ public class UGCExportHelper {
     }
 
     public static void extractTopic(final JSONWriter writer, final Post post, final ResourceResolver resolver,
-        final String resourceType, final String childResourceType, final Writer responseWriter)
-            throws JSONException, IOException {
+        final String resourceType, final String childResourceType, final Writer responseWriter) throws JSONException,
+        IOException {
 
         final ValueMap vm = post.getProperties();
         final JSONArray timestampFields = new JSONArray();
@@ -350,10 +352,10 @@ public class UGCExportHelper {
             for (final Resource subNode : childNodes) {
                 final String nodeName = subNode.getName();
                 if (nodeName.matches("^[0-9]+" + Post.POST_POSTFIX + "$")) {
-                    continue; //this is a folder of replies, which will be picked up lower down
+                    continue; // this is a folder of replies, which will be picked up lower down
                 }
                 if (nodeName.equals("attachments") || nodeName.equals("votes")) {
-                    continue; //already handled attachments and votes up above
+                    continue; // already handled attachments and votes up above
                 }
                 object.key(nodeName);
                 UGCExportHelper.extractSubNode(object.object(), subNode);
@@ -368,17 +370,19 @@ public class UGCExportHelper {
             while (posts.hasNext()) {
                 Post childPost = posts.next();
                 replyWriter.key(childPost.getId());
-                extractTopic(replyWriter.object(), childPost, resolver, childResourceType, childResourceType, responseWriter);
+                extractTopic(replyWriter.object(), childPost, resolver, childResourceType, childResourceType,
+                    responseWriter);
                 replyWriter.endObject();
             }
             writer.endObject();
         }
     }
 
-    public static void extractJournalEntry(final JSONWriter entryObject, final JournalEntry entry, final Writer rawWriter)
-            throws JSONException, UnsupportedEncodingException {
+    public static void extractJournalEntry(final JSONWriter entryObject, final JournalEntry entry,
+        final Writer rawWriter) throws JSONException, UnsupportedEncodingException {
         // re-importing a journal entry requires the following function
-        // JournalEntry addEntry(String title, String text, Date date, String author, List<DataSource> attachmentDataSources);
+        // JournalEntry addEntry(String title, String text, Date date, String author, List<DataSource>
+// attachmentDataSources);
         entryObject.key("title");
         entryObject.value(URLEncoder.encode(entry.getTitle(), "UTF-8"));
         entryObject.key("text");
@@ -399,10 +403,30 @@ public class UGCExportHelper {
         }
     }
 
-    public static void extractProperties(final JSONWriter object, final Map<String, Object> properties) throws JSONException {
+    public static void extractProperties(final JSONWriter object, final Map<String, Object> properties)
+        throws JSONException {
+        extractProperties(object, properties, null, null);
+    }
+
+    public static void extractProperties(final JSONWriter object, final Map<String, Object> properties,
+        final Map<String, String> renamedProperties, final String resourceType) throws JSONException {
         final JSONArray timestampFields = new JSONArray();
+        boolean setResourceType = false;
         for (Map.Entry<String, Object> prop : properties.entrySet()) {
-            final Object value = prop.getValue();
+            Object value = prop.getValue();
+            String key;
+            if (null != renamedProperties && renamedProperties.containsKey(prop.getKey())) {
+                key = renamedProperties.get(prop.getKey());
+                if (null == key) {
+                    continue; // we're excluding this property from the export
+                }
+            } else {
+                key = prop.getKey();
+            }
+            if (null != resourceType && key.equals(JcrResourceConstants.SLING_RESOURCE_TYPE_PROPERTY)) {
+                value = resourceType;
+                setResourceType = true;
+            }
             if (value instanceof String[]) {
                 final JSONArray list = new JSONArray();
                 for (String v : (String[]) value) {
@@ -412,17 +436,17 @@ public class UGCExportHelper {
                         throw new JSONException("String value cannot be encoded as UTF-8 for JSON transmission", e);
                     }
                 }
-                object.key(prop.getKey());
+                object.key(key);
                 object.value(list);
             } else if (value instanceof GregorianCalendar) {
-                timestampFields.put(prop.getKey());
-                object.key(prop.getKey());
+                timestampFields.put(key);
+                object.key(key);
                 object.value(((Calendar) value).getTimeInMillis());
             } else if (value instanceof InputStream) {
                 object.key(ContentTypeDefinitions.LABEL_ENCODED_DATA_FIELDNAME);
-                object.value(prop.getKey());
+                object.value(key);
                 object.key(ContentTypeDefinitions.LABEL_ENCODED_DATA);
-                object.value(""); //if we error out on the first read attempt, we need a placeholder value still
+                object.value(""); // if we error out on the first read attempt, we need a placeholder value still
                 try {
                     final InputStream data = (InputStream) value;
                     byte[] byteData = new byte[DATA_ENCODING_CHUNK_SIZE];
@@ -445,18 +469,22 @@ public class UGCExportHelper {
                     object.value("IOException while getting attachment: " + e.getMessage());
                 }
             } else {
-                object.key(prop.getKey());
+                object.key(key);
                 try {
-                    object.value(URLEncoder.encode(prop.getValue().toString(), "UTF-8"));
+                    object.value(URLEncoder.encode(value.toString(), "UTF-8"));
                 } catch (UnsupportedEncodingException e) {
                     throw new JSONException("String value cannot be encoded as UTF-8 for JSON transmission", e);
                 }
             }
         }
+        if (null != resourceType && !setResourceType) { // make sure this gets included if it's been specified
+            object.key(JcrResourceConstants.SLING_RESOURCE_TYPE_PROPERTY);
+            object.value(resourceType);
+        }
         if (timestampFields.length() > 0) {
             object.key(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS);
             object.value(timestampFields);
         }
-        //not yet implemented
+        // not yet implemented
     }
 }

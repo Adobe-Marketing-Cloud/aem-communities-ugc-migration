@@ -18,14 +18,8 @@
 package com.adobe.communities.ugc.migration.legacyExport;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.io.Writer;
-import java.net.URLEncoder;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import javax.jcr.RepositoryException;
 import javax.servlet.ServletException;
@@ -38,9 +32,7 @@ import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
-import org.apache.sling.api.resource.ValueMap;
 import org.apache.sling.api.servlets.SlingSafeMethodsServlet;
-import org.apache.sling.commons.json.JSONArray;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.io.JSONWriter;
 
@@ -56,11 +48,11 @@ import com.adobe.cq.social.forum.api.Post;
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/forum/export")})
 public class ForumExportServlet extends SlingSafeMethodsServlet {
 
-
     Writer responseWriter;
+
     @Override
     protected void doGet(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
-            throws ServletException, IOException {
+        throws ServletException, IOException {
 
         responseWriter = response.getWriter();
         final JSONWriter writer = new JSONWriter(responseWriter);
@@ -79,7 +71,7 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
     }
 
     protected void exportContent(final JSONWriter writer, final Forum forum, final ResourceResolver resolver)
-            throws ServletException, IOException {
+        throws ServletException, IOException {
         try {
             writer.object();
             writer.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
@@ -91,7 +83,7 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
                 writer.key(post.getId());
                 JSONWriter postObject = writer.object();
                 UGCExportHelper.extractTopic(postObject, post, resolver, "social/forum/components/hbs/topic",
-                        "social/forum/components/hbs/post", responseWriter);
+                    "social/forum/components/hbs/post", responseWriter);
                 postObject.endObject();
             }
             writer.endObject();
@@ -102,7 +94,6 @@ public class ForumExportServlet extends SlingSafeMethodsServlet {
             throw new ServletException(e);
         }
     }
-
 
     protected String getContentType() {
         return ContentTypeDefinitions.LABEL_FORUM;

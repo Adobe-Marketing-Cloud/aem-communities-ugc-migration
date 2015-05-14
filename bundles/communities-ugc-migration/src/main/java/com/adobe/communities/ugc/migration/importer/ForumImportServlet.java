@@ -45,7 +45,8 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 
 @Component(label = "UGC Importer for Forum Data",
-        description = "Moves forum data within json files into the active SocialResourceProvider", specVersion = "1.0")
+        description = "Moves forum data within json files into the active SocialResourceProvider",
+        specVersion = "1.1")
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/forum/import")})
 public class ForumImportServlet extends SlingAllMethodsServlet {
@@ -64,12 +65,14 @@ public class ForumImportServlet extends SlingAllMethodsServlet {
     @Reference
     private TallyOperationsService tallyOperationsService;
 
-    protected void doGet(final SlingHttpServletRequest request, final SlingHttpServletResponse response) throws IOException {
+    protected void doGet(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
+        throws IOException {
         Writer responseWriter = response.getWriter();
         responseWriter.append("Hello world");
     }
+
     protected void doPost(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
-            throws ServletException, IOException {
+        throws ServletException, IOException {
 
         final UGCImportHelper importHelper = new UGCImportHelper();
         importHelper.setForumOperations(forumOperations);
@@ -88,11 +91,11 @@ public class ForumImportServlet extends SlingAllMethodsServlet {
 
             InputStream inputStream = fileRequestParameters[0].getInputStream();
             JsonParser jsonParser = new JsonFactory().createParser(inputStream);
-            jsonParser.nextToken(); //get the first token
+            jsonParser.nextToken(); // get the first token
 
-            if(jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
+            if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
                 jsonParser.nextToken();
-                if(jsonParser.getCurrentName().equals(ContentTypeDefinitions.LABEL_CONTENT_TYPE)) {
+                if (jsonParser.getCurrentName().equals(ContentTypeDefinitions.LABEL_CONTENT_TYPE)) {
                     jsonParser.nextToken();
                     final String contentType = jsonParser.getValueAsString();
                     if (contentType.equals(getContentType())) {
@@ -103,11 +106,12 @@ public class ForumImportServlet extends SlingAllMethodsServlet {
                                 JsonToken token = jsonParser.nextToken(); // social:key
                                 try {
                                     while (!token.equals(JsonToken.END_OBJECT)) {
-                                        importHelper.extractTopic(jsonParser, resource, resource.getResourceResolver(), getOperationsService());
+                                        importHelper.extractTopic(jsonParser, resource,
+                                            resource.getResourceResolver(), getOperationsService());
                                         token = jsonParser.nextToken();
                                     }
-//                                } catch (final OperationException e) {
-//                                    throw new ServletException("Encountered an OperationException", e);
+// } catch (final OperationException e) {
+// throw new ServletException("Encountered an OperationException", e);
                                 } catch (final IOException e) {
                                     throw new ServletException("Encountered an IOException", e);
                                 }

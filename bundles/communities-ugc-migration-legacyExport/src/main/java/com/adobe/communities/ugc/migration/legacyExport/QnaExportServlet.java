@@ -18,6 +18,7 @@
 package com.adobe.communities.ugc.migration.legacyExport;
 
 //import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
+
 import java.io.IOException;
 import java.util.List;
 
@@ -43,7 +44,7 @@ public class QnaExportServlet extends ForumExportServlet {
 
     @Override
     protected void exportContent(final JSONWriter writer, final Forum forum, final ResourceResolver resolver)
-            throws ServletException, IOException {
+        throws ServletException, IOException {
         try {
             writer.object();
             writer.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
@@ -55,7 +56,7 @@ public class QnaExportServlet extends ForumExportServlet {
                 writer.key(post.getId());
                 JSONWriter postObject = writer.object();
                 UGCExportHelper.extractTopic(postObject, post, resolver, "social/qna/components/hbs/topic",
-                        "social/qna/components/hbs/post", responseWriter);
+                    "social/qna/components/hbs/post", responseWriter);
                 postObject.endObject();
             }
             writer.endObject();
@@ -66,6 +67,7 @@ public class QnaExportServlet extends ForumExportServlet {
             throw new ServletException(e);
         }
     }
+
     @Override
     protected String getContentType() {
         return ContentTypeDefinitions.LABEL_QNA_FORUM;

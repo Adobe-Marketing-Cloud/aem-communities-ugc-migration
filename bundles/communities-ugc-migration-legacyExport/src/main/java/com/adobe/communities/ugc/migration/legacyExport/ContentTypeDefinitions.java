@@ -19,22 +19,21 @@
 package com.adobe.communities.ugc.migration.legacyExport;
 
 public class ContentTypeDefinitions {
-    public final static String NAMESPACE_PREFIX             = "ugcExport:";
-    public final static String LABEL_CONTENT_TYPE           = NAMESPACE_PREFIX + "contentType";
-    public final static String LABEL_CONTENT                = NAMESPACE_PREFIX + "content";
-    public final static String LABEL_ATTACHMENTS            = NAMESPACE_PREFIX + "attachments";
-    public final static String LABEL_TALLY                  = NAMESPACE_PREFIX + "tally";
-    public final static String LABEL_TIMESTAMP_FIELDS       = NAMESPACE_PREFIX + "timestampFields";
-    public final static String LABEL_ENCODED_DATA           = NAMESPACE_PREFIX + "encodedData";
+    public final static String NAMESPACE_PREFIX = "ugcExport:";
+    public final static String LABEL_CONTENT_TYPE = NAMESPACE_PREFIX + "contentType";
+    public final static String LABEL_CONTENT = NAMESPACE_PREFIX + "content";
+    public final static String LABEL_ATTACHMENTS = NAMESPACE_PREFIX + "attachments";
+    public final static String LABEL_TALLY = NAMESPACE_PREFIX + "tally";
+    public final static String LABEL_TIMESTAMP_FIELDS = NAMESPACE_PREFIX + "timestampFields";
+    public final static String LABEL_ENCODED_DATA = NAMESPACE_PREFIX + "encodedData";
     public final static String LABEL_ENCODED_DATA_FIELDNAME = NAMESPACE_PREFIX + "encodedDataFieldName";
-    public final static String LABEL_ERROR                  = NAMESPACE_PREFIX + "error";
-    public final static String LABEL_SUBNODES               = NAMESPACE_PREFIX + "subNodes";
-    public final static String LABEL_REPLIES                = NAMESPACE_PREFIX + "replies";
+    public final static String LABEL_ERROR = NAMESPACE_PREFIX + "error";
+    public final static String LABEL_SUBNODES = NAMESPACE_PREFIX + "subNodes";
+    public final static String LABEL_REPLIES = NAMESPACE_PREFIX + "replies";
 
-
-    public final static String LABEL_FORUM                  = "forum";
-    public final static String LABEL_QNA_FORUM              = "qnaForum";
-    public final static String LABEL_COMMENTS               = "comments";
-    public final static String LABEL_CALENDAR               = "calendar";
-    public final static String LABEL_JOURNAL                = "journal";
+    public final static String LABEL_FORUM = "forum";
+    public final static String LABEL_QNA_FORUM = "qnaForum";
+    public final static String LABEL_COMMENTS = "comments";
+    public final static String LABEL_CALENDAR = "calendar";
+    public final static String LABEL_JOURNAL = "journal";
 }

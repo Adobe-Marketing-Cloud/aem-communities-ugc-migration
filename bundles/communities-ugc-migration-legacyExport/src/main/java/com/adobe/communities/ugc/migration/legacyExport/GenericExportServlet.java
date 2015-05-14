@@ -36,6 +36,7 @@ import java.util.zip.ZipOutputStream;
 
 import javax.servlet.ServletException;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -43,6 +44,7 @@ import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.Resource;
+import org.apache.sling.api.resource.ValueMap;
 import org.apache.sling.api.servlets.SlingSafeMethodsServlet;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.io.JSONWriter;
@@ -56,21 +58,20 @@ import com.adobe.cq.social.forum.api.Forum;
 import com.adobe.cq.social.forum.api.Post;
 import com.adobe.cq.social.journal.Journal;
 import com.adobe.cq.social.journal.JournalEntry;
-import org.apache.commons.io.IOUtils;
 
 @Component(label = "UGC Exporter for all UGC Data Types",
         description = "Moves any ugc data into a zip archive for storage or re-import", specVersion = "1.0")
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/ugc/export")})
-
 public class GenericExportServlet extends SlingSafeMethodsServlet {
 
     Writer responseWriter;
     ZipOutputStream zip;
     Map<String, Boolean> entries;
+
     @Override
     protected void doGet(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
-            throws ServletException, IOException {
+        throws ServletException, IOException {
 
         if (!request.getRequestParameterMap().containsKey("path")) {
             throw new ServletException("No path specified for export. Exiting.");
@@ -125,21 +126,21 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
         }
     }
 
-    protected void exportContent(Resource rootNode, final String rootPath)
-            throws IOException, ServletException {
+    protected void exportContent(Resource rootNode, final String rootPath) throws IOException, ServletException {
 
-        String relPath = rootNode.getPath().substring(rootNode.getPath().indexOf(rootPath)+rootPath.length());
+        String relPath = rootNode.getPath().substring(rootNode.getPath().indexOf(rootPath) + rootPath.length());
         String entryName = relPath.isEmpty() ? ".root.json" : relPath + ".json";
         responseWriter = new OutputStreamWriter(zip);
         JSONWriter writer = new JSONWriter(responseWriter);
         writer.setTidy(true);
         if (rootNode.isResourceType(Comment.RESOURCE_TYPE)) {
-        //if we're traversing a tree and come to a comment, we need to be looking at the comment system's resource instead
-        // of the resource for the comment itself as we continue our dive.
+            // if we're traversing a tree and come to a comment, we need to be looking at the comment system's
+// resource instead
+            // of the resource for the comment itself as we continue our dive.
             Comment comment = rootNode.adaptTo(Comment.class);
             if (null != comment) {
                 CommentSystem commentSystem = comment.getCommentSystem();
-                if (entries.containsKey(commentSystem.getPath())) { //make sure to only attempt export once
+                if (entries.containsKey(commentSystem.getPath())) { // make sure to only attempt export once
                     return;
                 }
                 rootNode = commentSystem.getResource();
@@ -149,7 +150,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
         try {
             if (rootNode.isResourceType("social/qna/components/qnaforum")) {
                 final Forum forum = rootNode.adaptTo(Forum.class);
-                if (forum == null) { //avoid throwing a null pointer exception
+                if (forum == null) { // avoid throwing a null pointer exception
                     for (final Resource resource : rootNode.getChildren()) {
                         exportContent(resource, rootPath);
                     }
@@ -168,7 +169,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                         forumObject.key(post.getId());
                         final JSONWriter postObject = forumObject.object();
                         UGCExportHelper.extractTopic(postObject, post, rootNode.getResourceResolver(),
-                                "social/qna/components/hbs/topic", "social/qna/components/hbs/post", responseWriter);
+                            "social/qna/components/hbs/topic", "social/qna/components/hbs/post", responseWriter);
                         forumObject.endObject();
                     }
                     forumObject.endObject();
@@ -179,7 +180,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
             } else if (rootNode.isResourceType(Forum.RESOURCE_TYPE)) {
 
                 final Forum forum = rootNode.adaptTo(Forum.class);
-                if (forum == null) { //avoid throwing a null pointer exception
+                if (forum == null) { // avoid throwing a null pointer exception
                     for (final Resource resource : rootNode.getChildren()) {
                         exportContent(resource, rootPath);
                     }
@@ -198,7 +199,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                         forumObject.key(post.getId());
                         final JSONWriter postObject = forumObject.object();
                         UGCExportHelper.extractTopic(postObject, post, rootNode.getResourceResolver(),
-                                "social/qna/components/hbs/topic", "social/qna/components/hbs/post", responseWriter);
+                            "social/qna/components/hbs/topic", "social/qna/components/hbs/post", responseWriter);
                         forumObject.endObject();
                     }
                     forumObject.endObject();
@@ -208,10 +209,10 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                 }
             } else if (rootNode.isResourceType(CommentSystem.RESOURCE_TYPE)) {
                 if (rootNode.getName().equals("entrycomments")) {
-                    return; //these are special cases of comments that will be handled by journal instead
+                    return; // these are special cases of comments that will be handled by journal instead
                 }
                 final CommentSystem commentSystem = rootNode.adaptTo(CommentSystem.class);
-                if (commentSystem == null) { //avoid throwing a null pointer exception
+                if (commentSystem == null) { // avoid throwing a null pointer exception
                     for (final Resource resource : rootNode.getChildren()) {
                         exportContent(resource, rootPath);
                     }
@@ -229,7 +230,8 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                         final Comment comment = comments.next();
                         commentsNode.key(comment.getId());
                         final JSONWriter commentObject = commentsNode.object();
-                        UGCExportHelper.extractComment(commentObject, comment, rootNode.getResourceResolver(), responseWriter);
+                        UGCExportHelper.extractComment(commentObject, comment, rootNode.getResourceResolver(),
+                            responseWriter);
                         commentsNode.endObject();
                     }
                     commentsNode.endObject();
@@ -243,7 +245,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                     CommentSystem commentSystem = comment.getCommentSystem();
                     final Iterator<Comment> comments = commentSystem.getComments();
                     final String path = commentSystem.getPath();
-                    entryName = path;//.substring(rootNode.getPath().indexOf(rootPath)+rootPath.length());
+                    entryName = path;// .substring(rootNode.getPath().indexOf(rootPath)+rootPath.length());
                     if (entries.containsKey(entryName)) {
                         return;
                     }
@@ -259,7 +261,8 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                             comment = comments.next();
                             commentsNode.key(comment.getId());
                             final JSONWriter commentObject = commentsNode.object();
-                            UGCExportHelper.extractComment(commentObject, comment, rootNode.getResourceResolver(), responseWriter);
+                            UGCExportHelper.extractComment(commentObject, comment, rootNode.getResourceResolver(),
+                                responseWriter);
                             commentsNode.endObject();
                         }
                         commentsNode.endObject();
@@ -268,11 +271,12 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                         zip.closeEntry();
                     }
                 }
-            } else if (rootNode.isResourceType(CalendarConstants.RT_CALENDAR_COMPONENT) ||
-                       rootNode.isResourceType(CalendarConstants.MIX_CALENDAR) ||
-                       rootNode.getResourceType().endsWith("calendar")) {
+            } else if (rootNode.isResourceType(CalendarConstants.RT_CALENDAR_COMPONENT)
+                    || rootNode.isResourceType(CalendarConstants.MIX_CALENDAR)
+                    || rootNode.getResourceType().endsWith("calendar")) {
                 CqCalendar calendar = rootNode.adaptTo(CqCalendar.class);
-                if (calendar == null) { //avoid throwing a null pointer exception if this node isn't actually a calendar
+                if (calendar == null) { // avoid throwing a null pointer exception if this node isn't actually a
+// calendar
                     for (final Resource resource : rootNode.getChildren()) {
                         exportContent(resource, rootPath);
                     }
@@ -290,7 +294,16 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                 JSONWriter eventObjects = calendarNode.array();
                 while (events.hasNext()) {
                     final Event event = events.next();
-                    UGCExportHelper.extractProperties(eventObjects.object(), event.getProperties());
+                    ValueMap eventProperties = event.getProperties();
+                    // we renamed "start" and "end" going from version 5.6.1 to 6.1
+                    Map<String, String> propertyNames = new HashMap<String, String>();
+                    propertyNames.put("start", "calendar_event_start_dt");
+                    propertyNames.put("end", "calendar_event_end_dt");
+                    propertyNames.put("jcr:title", "subject");
+                    propertyNames.put("jcr:created", "added");
+                    propertyNames.put("jcr:primaryType", null);
+                    UGCExportHelper.extractProperties(eventObjects.object(), eventProperties, propertyNames,
+                        "social/calendar/components/hbs/event");
                     eventObjects.endObject();
                 }
                 calendarNode.endArray();
@@ -298,7 +311,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                 responseWriter.flush();
                 zip.closeEntry();
             } else if (rootNode.isResourceType("social/tally/components/poll")) { // No constant defined in 5.6.1
-                return; //we know what it is, but there's no antecedent to put it into for 6.1
+                return; // we know what it is, but there's no antecedent to put it into for 6.1
             } else if (rootNode.isResourceType("social/tally/components/voting")) { // No constant defined in 5.6.1
                 zip.putNextEntry(new ZipEntry(entryName));
                 final JSONWriter tallyNode = writer.object();
@@ -325,7 +338,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                 zip.closeEntry();
             } else if (rootNode.isResourceType("social/journal/components/entrylist")) {
                 final Journal journal = rootNode.adaptTo(Journal.class);
-                if (journal == null) { //avoid throwing a null pointer exception
+                if (journal == null) { // avoid throwing a null pointer exception
                     for (final Resource resource : rootNode.getChildren()) {
                         exportContent(resource, rootPath);
                     }

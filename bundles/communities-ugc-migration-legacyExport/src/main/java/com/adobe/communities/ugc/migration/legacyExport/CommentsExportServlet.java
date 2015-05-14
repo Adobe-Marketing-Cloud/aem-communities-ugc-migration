@@ -44,11 +44,11 @@ import com.adobe.cq.social.commons.CommentSystem;
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/comments/export")})
 public class CommentsExportServlet extends SlingSafeMethodsServlet {
 
-
     Writer responseWriter;
+
     @Override
     protected void doGet(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
-            throws ServletException, IOException {
+        throws ServletException, IOException {
 
         responseWriter = response.getWriter();
         final JSONWriter writer = new JSONWriter(responseWriter);
@@ -66,8 +66,8 @@ public class CommentsExportServlet extends SlingSafeMethodsServlet {
         }
     }
 
-    protected void exportContent(final JSONWriter writer, final Resource rootNode)
-            throws IOException, ServletException {
+    protected void exportContent(final JSONWriter writer, final Resource rootNode) throws IOException,
+        ServletException {
         try {
             writer.object();
             writer.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
@@ -83,8 +83,9 @@ public class CommentsExportServlet extends SlingSafeMethodsServlet {
             throw new ServletException(e);
         }
     }
-    
-    protected void exportComments(final JSONWriter writer, final Resource rootNode) throws JSONException, RepositoryException, IOException {
+
+    protected void exportComments(final JSONWriter writer, final Resource rootNode) throws JSONException,
+        RepositoryException, IOException {
 
         if (rootNode.isResourceType(CommentSystem.RESOURCE_TYPE)) {
             CommentSystem commentSystem = rootNode.adaptTo(CommentSystem.class);
@@ -93,14 +94,16 @@ public class CommentsExportServlet extends SlingSafeMethodsServlet {
                 writer.key(rootNode.getPath());
                 JSONWriter commentsList = writer.array();
                 while (comments.hasNext()) {
-                    UGCExportHelper.extractComment(commentsList.object(), comments.next(), rootNode.getResourceResolver(), responseWriter);
+                    UGCExportHelper.extractComment(commentsList.object(), comments.next(),
+                        rootNode.getResourceResolver(), responseWriter);
                     commentsList.endObject();
                 }
                 writer.endArray();
             }
         } else if (rootNode.isResourceType(Comment.RESOURCE_TYPE)) {
             writer.value(rootNode.getPath());
-            UGCExportHelper.extractComment(writer.object(), rootNode.adaptTo(Comment.class), rootNode.getResourceResolver(), responseWriter);
+            UGCExportHelper.extractComment(writer.object(), rootNode.adaptTo(Comment.class),
+                rootNode.getResourceResolver(), responseWriter);
             writer.endObject();
         } else {
             for (final Resource resource : rootNode.getChildren()) {
