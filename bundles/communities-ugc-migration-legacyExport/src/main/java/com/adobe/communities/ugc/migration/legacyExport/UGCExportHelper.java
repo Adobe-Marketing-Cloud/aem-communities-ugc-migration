@@ -166,8 +166,8 @@ public class UGCExportHelper {
     /**
      * Need to do this because the responses that tally returns don't actually link users with their response values.
      * In order to do an export under the legacy code, we have to explicitly handle the bucketing system.
-     * @param resource
-     * @return
+     * @param resource - the resource being exported
+     * @return NestedBucketStorageSystem
      */
     protected static NestedBucketStorageSystem getBucketSystem(final Resource resource) {
         NestedBucketStorageSystem bucketSystem;
@@ -205,6 +205,56 @@ public class UGCExportHelper {
                     voteObject.endObject();
                 }
             }
+        }
+    }
+
+    public static void extractTranslations(final JSONWriter writer, final Iterable<Resource> translations)
+        throws JSONException, IOException {
+        for (final Resource translation : translations) {
+            final JSONArray timestampFields = new JSONArray();
+            final ValueMap vm = translation.adaptTo(ValueMap.class);
+            if (!vm.containsKey("jcr:description")) {
+                continue; //if there's no translation, we're done here
+            }
+            String languageLabel = translation.getName();
+            if (languageLabel.equals("nb")) {
+                // SPECIAL CASE FOR LEGACY EXPORTER ONLY:
+                // the label for norwegian changed between 6.0 and 6.1
+                // (i.e. this section must be removed for 6.1 exporter)
+                languageLabel = "no";
+            }
+            writer.key(languageLabel);
+
+            JSONWriter translationObject = writer.object();
+            translationObject.key("jcr:description");
+            translationObject.value(URLEncoder.encode((String) vm.get("jcr:description"), "UTF-8"));
+            if (vm.containsKey("jcr:createdBy")) {
+                translationObject.key("jcr:createdBy");
+                translationObject.value(URLEncoder.encode((String) vm.get("jcr:createdBy"), "UTF-8"));
+            }
+            if (vm.containsKey("jcr:title")) {
+                translationObject.key("jcr:title");
+                translationObject.value(URLEncoder.encode((String) vm.get("jcr:title"), "UTF-8"));
+            }
+            if (vm.containsKey("postEdited")) {
+                translationObject.key("postEdited");
+                translationObject.value(vm.get("postEdited"));
+            }
+            if (vm.containsKey("translationDate")) {
+                translationObject.key("translationDate");
+                translationObject.value(((Calendar) vm.get("translationDate")).getTimeInMillis());
+                timestampFields.put("translationDate");
+            }
+            if (vm.containsKey("jcr:created")) {
+                translationObject.key("jcr:created");
+                translationObject.value(((Calendar) vm.get("jcr:created")).getTimeInMillis());
+                timestampFields.put("jcr:created");
+            }
+            if (timestampFields.length() > 0) {
+                translationObject.key(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS);
+                translationObject.value(timestampFields);
+            }
+            translationObject.endObject();
         }
     }
 
@@ -260,23 +310,32 @@ public class UGCExportHelper {
             UGCExportHelper.extractTally(voteObjects, voteResource, "Voting");
             writer.endArray();
         }
+        final Resource translationResource = thisResource.getChild("translation");
+        if (null != translationResource) {
+            extractTranslation(writer, translationResource);
+        }
         final Iterable<Resource> childNodes = thisResource.getChildren();
         if (childNodes != null) {
-            writer.key(ContentTypeDefinitions.LABEL_SUBNODES);
-            final JSONWriter object = writer.object();
+            JSONWriter object = null;
             for (final Resource subNode : childNodes) {
                 final String nodeName = subNode.getName();
                 if (nodeName.matches("^[0-9]+" + Post.POST_POSTFIX + "$")) {
                     continue; // this is a folder of replies, which will be picked up lower down
                 }
-                if (nodeName.equals("attachments") || nodeName.equals("votes")) {
+                if (nodeName.equals("attachments") || nodeName.equals("votes") || nodeName.equals("translation")) {
                     continue; // already handled attachments and votes up above
+                }
+                if (null == object) {
+                    writer.key(ContentTypeDefinitions.LABEL_SUBNODES);
+                    object = writer.object();
                 }
                 object.key(nodeName);
                 UGCExportHelper.extractSubNode(object.object(), subNode);
                 object.endObject();
             }
-            writer.endObject();
+            if (null != object) {
+                writer.endObject();
+            }
         }
         final Iterator<Comment> posts = post.getComments();
         if (posts.hasNext()) {
@@ -345,6 +404,10 @@ public class UGCExportHelper {
             UGCExportHelper.extractTally(voteObjects, voteResource, "Voting");
             writer.endArray();
         }
+        final Resource translationResource = thisResource.getChild("translation");
+        if (null != translationResource) {
+            extractTranslation(writer, translationResource);
+        }
         final Iterable<Resource> childNodes = thisResource.getChildren();
         if (childNodes != null) {
             writer.key(ContentTypeDefinitions.LABEL_SUBNODES);
@@ -354,8 +417,8 @@ public class UGCExportHelper {
                 if (nodeName.matches("^[0-9]+" + Post.POST_POSTFIX + "$")) {
                     continue; // this is a folder of replies, which will be picked up lower down
                 }
-                if (nodeName.equals("attachments") || nodeName.equals("votes")) {
-                    continue; // already handled attachments and votes up above
+                if (nodeName.equals("attachments") || nodeName.equals("votes") || nodeName.equals("translation")) {
+                    continue; // already handled attachments, votes and translations up above
                 }
                 object.key(nodeName);
                 UGCExportHelper.extractSubNode(object.object(), subNode);
@@ -406,6 +469,37 @@ public class UGCExportHelper {
     public static void extractProperties(final JSONWriter object, final Map<String, Object> properties)
         throws JSONException {
         extractProperties(object, properties, null, null);
+    }
+
+    public static void extractTranslation(final JSONWriter writer, final Resource translationResource)
+            throws JSONException, IOException {
+
+        final Iterable<Resource> translations = translationResource.getChildren();
+        final ValueMap props = translationResource.adaptTo(ValueMap.class);
+        writer.key(ContentTypeDefinitions.LABEL_TRANSLATION);
+        writer.object();
+        writer.key("mtlanguage");
+        String languageLabel = (String) props.get("language");
+
+        if (languageLabel.equals("nb")) {
+            // SPECIAL CASE FOR LEGACY EXPORTER ONLY:
+            // the label for norwegian changed between 6.0 and 6.1
+            // (i.e. this section must be removed for 6.1 exporter)
+            languageLabel = "no";
+        }
+
+        writer.value(languageLabel);
+        writer.key("jcr:created");
+        writer.value(props.get("jcr:created", Long.class));
+        writer.key("jcr:createdBy");
+        writer.value(props.get("jcr:createdBy"));
+        if (translations.iterator().hasNext()) {
+            writer.key(ContentTypeDefinitions.LABEL_TRANSLATIONS);
+            final JSONWriter translationObjects = writer.object();
+            UGCExportHelper.extractTranslations(translationObjects, translations);
+            writer.endObject();
+        }
+        writer.endObject();
     }
 
     public static void extractProperties(final JSONWriter object, final Map<String, Object> properties,

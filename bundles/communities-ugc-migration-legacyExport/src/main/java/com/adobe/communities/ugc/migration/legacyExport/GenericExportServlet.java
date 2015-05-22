@@ -177,8 +177,8 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                     responseWriter.flush();
                     zip.closeEntry();
                 }
-            } else if (rootNode.isResourceType(Forum.RESOURCE_TYPE)) {
-
+            } else if (rootNode.isResourceType(Forum.RESOURCE_TYPE)
+                    || rootNode.isResourceType("social/forum/components/hbs/forum")) {
                 final Forum forum = rootNode.adaptTo(Forum.class);
                 if (forum == null) { // avoid throwing a null pointer exception
                     for (final Resource resource : rootNode.getChildren()) {
@@ -199,7 +199,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                         forumObject.key(post.getId());
                         final JSONWriter postObject = forumObject.object();
                         UGCExportHelper.extractTopic(postObject, post, rootNode.getResourceResolver(),
-                            "social/qna/components/hbs/topic", "social/qna/components/hbs/post", responseWriter);
+                            "social/forum/components/hbs/topic", "social/forum/components/hbs/post", responseWriter);
                         forumObject.endObject();
                     }
                     forumObject.endObject();

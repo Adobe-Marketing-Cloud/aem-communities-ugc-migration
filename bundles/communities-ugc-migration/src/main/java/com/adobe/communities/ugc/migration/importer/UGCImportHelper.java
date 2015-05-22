@@ -410,8 +410,9 @@ public class UGCImportHelper {
                     attachments = getAttachments(jsonParser);
                 } else if (label.equals(ContentTypeDefinitions.LABEL_REPLIES)
                         || label.equals(ContentTypeDefinitions.LABEL_TALLY)
+                        || label.equals(ContentTypeDefinitions.LABEL_TRANSLATION)
                         || label.equals(ContentTypeDefinitions.LABEL_SUBNODES)) {
-                    // replies and sub-nodesALWAYS come after all other properties and attachments have been listed,
+                    // replies and sub-nodes ALWAYS come after all other properties and attachments have been listed,
                     // so we can create the post now if we haven't already, and then dive in
                     if (post == null) {
                         try {
@@ -435,7 +436,6 @@ public class UGCImportHelper {
                             throw new IOException("Expected an object for the subnodes");
                         }
                     } else if (label.equals(ContentTypeDefinitions.LABEL_SUBNODES)) {
-                        // TODO - handle the separate types of sub-nodes (eg. voting, tally, translation)
                         if (token.equals(JsonToken.START_OBJECT)) {
                             token = jsonParser.nextToken();
                             try {
@@ -460,6 +460,9 @@ public class UGCImportHelper {
                         } catch (OperationException e) {
                             throw new IOException("Could not create tally", e);
                         }
+                    } else if (label.equals(ContentTypeDefinitions.LABEL_TRANSLATION)) {
+                        importTranslation(jsonParser, post);
+                        resProvider.commit(post.getResourceResolver());
                     }
 
                 } else if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
@@ -497,7 +500,9 @@ public class UGCImportHelper {
                     post =
                         createPost(resource, author, properties, attachments, resolver.adaptTo(Session.class),
                             operations);
-                    resProvider = SocialResourceUtils.getSocialResource(post).getResourceProvider();
+                    if (null == resProvider) {
+                        resProvider = SocialResourceUtils.getSocialResource(post).getResourceProvider();
+                    }
 // resProvider.commit(resolver);
                 } catch (Exception e) {
                     throw new ServletException(e.getMessage(), e);
@@ -635,6 +640,92 @@ public class UGCImportHelper {
             token = jsonParser.nextToken();
         }
         return attachments;
+    }
+
+    protected static void importTranslation(final JsonParser jsonParser, final Resource post) throws IOException {
+        JsonToken token = jsonParser.getCurrentToken();
+        final Map<String, Object> properties = new HashMap<String, Object>();
+        if (token != JsonToken.START_OBJECT) {
+            throw new IOException("expected a start object token, got " + token.asString());
+        }
+        properties.put("jcr:primaryType", "social:asiResource");
+        Resource translationFolder = null;
+        token = jsonParser.nextToken();
+        while (token == JsonToken.FIELD_NAME) {
+            token = jsonParser.nextToken(); //advance to the field value
+            if (jsonParser.getCurrentName().equals((ContentTypeDefinitions.LABEL_TRANSLATIONS))) {
+                if (null == translationFolder) {
+                    // begin by creating the translation folder resource
+                    translationFolder = post.getResourceResolver().create(post, "translation", properties);
+                }
+                //now check to see if any translations exist
+                if (token == JsonToken.START_OBJECT) {
+                    token = jsonParser.nextToken();
+                    if (token == JsonToken.FIELD_NAME) {
+                        while (token == JsonToken.FIELD_NAME) { // each new field represents another translation
+                            final Map<String, Object> translationProperties = new HashMap<String, Object>();
+                            translationProperties.put("jcr:primaryType", "social:asiResource");
+                            String languageLabel = jsonParser.getCurrentName();
+                            token = jsonParser.nextToken();
+                            if (token != JsonToken.START_OBJECT) {
+                                throw new IOException("expected a start object token for translation item, got "
+                                        + token.asString());
+                            }
+                            token = jsonParser.nextToken();
+                            while (token != JsonToken.END_OBJECT) {
+                                jsonParser.nextToken(); //get next field value
+                                if(jsonParser.getCurrentName().equals(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS)) {
+                                    jsonParser.nextToken(); // advance to first field name
+                                    while (!jsonParser.getCurrentToken().equals(JsonToken.END_ARRAY)) {
+                                        final String timestampLabel = jsonParser.getValueAsString();
+                                        if (translationProperties.containsKey(timestampLabel)) {
+                                            final Calendar calendar = new GregorianCalendar();
+                                            calendar.setTimeInMillis(
+                                                    Long.parseLong((String)translationProperties.get(timestampLabel)));
+                                            translationProperties.put(timestampLabel, calendar.getTime());
+                                        }
+                                        jsonParser.nextToken();
+                                    }
+                                } else if (jsonParser.getCurrentName().equals(ContentTypeDefinitions.LABEL_SUBNODES)) {
+                                    jsonParser.skipChildren();
+                                } else {
+                                    translationProperties.put(jsonParser.getCurrentName(),
+                                            URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8"));
+                                }
+                                token = jsonParser.nextToken(); //get next field label
+                            }
+                            // add the language-specific translation under the translation folder resource
+                            Resource translation = post.getResourceResolver().create(post.getChild("translation"),
+                                    languageLabel, translationProperties);
+                            if (null == translation) {
+                                throw new IOException("translation not actually imported");
+                            }
+                        }
+                        jsonParser.nextToken(); //skip END_OBJECT token for translation
+                    } else if (token == JsonToken.END_OBJECT) {
+                        // no actual translation to import, so we're done here
+                        jsonParser.nextToken();
+                    }
+                } else {
+                    throw new IOException("expected translations to be contained in an object, saw instead: "
+                            +token.asString());
+                }
+            }
+            else if (jsonParser.getCurrentName().equals("mtlanguage") ||
+                     jsonParser.getCurrentName().equals("jcr:createdBy")) {
+                properties.put(jsonParser.getCurrentName(), jsonParser.getValueAsString());
+            } else if (jsonParser.getCurrentName().equals("jcr:created")) {
+                final Calendar calendar = new GregorianCalendar();
+                calendar.setTimeInMillis(jsonParser.getLongValue());
+                properties.put("jcr:created", calendar.getTime());
+            }
+            token = jsonParser.nextToken();
+        }
+        if (null == translationFolder && properties.containsKey("mtlanguage")) {
+            // it's possible that no translations existed, so we need to make sure the translation resource (which
+            // includes the original post's detected language) is created anyway
+            post.getResourceResolver().create(post, "translation", properties);
+        }
     }
 
     /**
