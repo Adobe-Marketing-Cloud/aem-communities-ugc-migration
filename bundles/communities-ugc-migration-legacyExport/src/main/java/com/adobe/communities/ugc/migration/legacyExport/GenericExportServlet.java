@@ -77,7 +77,10 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
         if (!request.getRequestParameterMap().containsKey("path")) {
             throw new ServletException("No path specified for export. Exiting.");
         }
-        final String path = request.getRequestParameter("path").getString();
+        String path = request.getRequestParameter("path").getString();
+        while (path.endsWith("/")) { //remove trailing "/"
+            path = path.substring(0, path.length()-1);
+        }
         response.setContentType("application/octet-stream");
         final String headerKey = "Content-Disposition";
         final String headerValue = "attachment; filename=\"export.zip\"";
@@ -145,7 +148,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
             Comment comment = rootNode.adaptTo(Comment.class);
             if (null != comment) {
                 CommentSystem commentSystem = comment.getCommentSystem();
-                entries.put(commentSystem.getPath(), true);
+                entries.put(commentSystem.getResource().getPath(), true);
                 return;
             }
         }
@@ -221,7 +224,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                     return;
                 }
                 // we only export after all other nodes have been searched and exported as needed
-                entries.put(commentSystem.getPath(), true);
+                entries.put(commentSystem.getResource().getPath(), true);
             } else if (rootNode.isResourceType(CalendarConstants.RT_CALENDAR_COMPONENT)
                     || rootNode.isResourceType(CalendarConstants.MIX_CALENDAR)
                     || rootNode.getResourceType().endsWith("calendar")) {
@@ -331,8 +334,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                                         final Resource resource, final String path) throws IOException, JSONException {
         for(final String commentSystemPath : entries.keySet()) {
             if (!entriesToSkip.containsKey(commentSystemPath)) {
-                final String relPath = resource.getPath()
-                        .substring(resource.getPath().indexOf(path) + path.length());
+                final String relPath = commentSystemPath.substring(commentSystemPath.indexOf(path) + path.length());
                 String entryName = relPath.isEmpty() ? ".root.json" : relPath + ".json";
                 responseWriter = new OutputStreamWriter(zip);
                 final JSONWriter writer = new JSONWriter(responseWriter);

@@ -321,7 +321,7 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
                     resolver.create(file, JcrConstants.JCR_CONTENT, fileProperties);
 
                     // add the file name to our response
-                    writer.value("/" + name);
+                    writer.value(name);
                 }
                 // save the new node(s)
                 resolver.commit();
