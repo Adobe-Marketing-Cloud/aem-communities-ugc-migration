@@ -23,13 +23,14 @@
     var UPLOAD_AND_IMPORT_SERVLET = Granite.HTTP.getContextPath() + "/services/social/ugc/upload";
 
     $(function() {
+        var select = new CUI.Select({ element: 'span.file-selection-box' });
         $('section.wait-box').hide();
         //populate the file-selection drop-down list with all currently stored files
         $.get( UPLOAD_AND_IMPORT_SERVLET, null,
             function(dataRows) {
                 if (dataRows.length > 0) {
                     $.each(dataRows, function() {
-                        displayImportForm(this.files, this.folderName, this.filename, this.uploadDate);
+                        displayImportForm(this.files, this.folderName, this.filename, this.uploadDate, select);
                     });
                     $('form.file-selection-form').show();
                 }
@@ -67,7 +68,7 @@
                         showAlert("success", "Your migration data has been saved.", "Success");
                         // display import view
                         data = JSON.parse(data);
-                        displayImportForm(data['files'], data['folderName'], data['filename'], data['uploadDate']);
+                        displayImportForm(data['files'], data['folderName'], data['filename'], data['uploadDate'], select);
                         $('form.file-selection-form').show();
                     },
                     error:function(jqXHR) {
@@ -90,7 +91,6 @@
             var $form = $target.closest("form");
             var input  = $('input', $form);
             var path = input.val();
-            var select = new CUI.Select({ element: 'span.file-selection-box' });
             var filePath = select.getValue();
             if (path && filePath) {
                 $.ajax({
@@ -130,7 +130,6 @@
         // third button will delete a specified file from the store of files held in the default migration repository
         $("form.file-selection-form button.delete-button").click(function(event) {
             event.preventDefault();
-            var select = new CUI.Select({ element: 'span.file-selection-box' });
             var filePath = select.getValue();
             if (filePath) {
                 var modal = new CUI.Modal({ element:'#myModal', visible: false });
@@ -198,10 +197,9 @@
         $("#defaultAlert").show();
     }
 
-    function displayImportForm(files, folderName, filename, timestamp) {
+    function displayImportForm(files, folderName, filename, timestamp, select) {
         var date = new Date(timestamp);
 
-        var select = new CUI.Select({ element: 'span.file-selection-box' });
         select.addGroup(date.toLocaleDateString() + ' ' + date.toLocaleTimeString() + ' - ' + filename, select.getItems().length);
         $.each(files, function () {
             var option = {};
