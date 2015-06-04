@@ -29,11 +29,16 @@ import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
+import org.apache.jackrabbit.JcrConstants;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.request.RequestParameter;
+import org.apache.sling.api.resource.NonExistingResource;
+import org.apache.sling.api.resource.PersistenceException;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
+import org.apache.sling.api.resource.ResourceUtil;
+import org.apache.sling.api.resource.ValueMap;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
@@ -126,6 +131,41 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
         } else {
             throw new ServletException("No file provided for UGC data");
         }
+    }
+
+    protected void doGet(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
+            throws ServletException, IOException {
+        final String path = request.getRequestParameter("path").getString();
+        final Resource resource = request.getResourceResolver().getResource(path);
+        if (resource == null) {
+            throw new ServletException("Could not find a valid resource for import");
+        }
+        final String filePath = request.getRequestParameter("filePath").getString();
+        if (!filePath.startsWith(ImportFileUploadServlet.UPLOAD_DIR)) {
+            throw new ServletException("Path to file resource lies outside migration import path");
+        }
+        final Resource fileResource = request.getResourceResolver().getResource(filePath);
+        if (fileResource == null) {
+            throw new ServletException("Could not find a valid file resource to read");
+        }
+        // get the input stream from the file resource
+        Resource file = fileResource.getChild("file");
+        if (null != file && !(file instanceof NonExistingResource)) {
+            file = file.getChild(JcrConstants.JCR_CONTENT);
+            if (null != file && !(file instanceof NonExistingResource)) {
+                final ValueMap contentVM = file.getValueMap();
+                InputStream inputStream = (InputStream) contentVM.get(JcrConstants.JCR_DATA);
+                if (inputStream != null) {
+                    final JsonParser jsonParser = new JsonFactory().createParser(inputStream);
+                    jsonParser.nextToken(); // get the first token
+
+                    importFile(jsonParser, resource);
+                    ImportFileUploadServlet.deleteResource(fileResource);
+                    return;
+                }
+            }
+        }
+        throw new ServletException("Unable to read file in provided file resource path");
     }
 
     /**

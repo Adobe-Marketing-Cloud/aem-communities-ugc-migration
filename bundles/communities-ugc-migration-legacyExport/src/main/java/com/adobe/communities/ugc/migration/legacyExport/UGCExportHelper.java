@@ -442,18 +442,49 @@ public class UGCExportHelper {
     }
 
     public static void extractJournalEntry(final JSONWriter entryObject, final JournalEntry entry,
-        final Writer rawWriter) throws JSONException, UnsupportedEncodingException {
-        // re-importing a journal entry requires the following function
-        // JournalEntry addEntry(String title, String text, Date date, String author, List<DataSource>
-// attachmentDataSources);
-        entryObject.key("title");
-        entryObject.value(URLEncoder.encode(entry.getTitle(), "UTF-8"));
-        entryObject.key("text");
-        entryObject.value(URLEncoder.encode(entry.getText(), "UTF-8"));
-        entryObject.key("date");
-        entryObject.value(entry.getDate().getTime());
-        entryObject.key("author");
-        entryObject.value(URLEncoder.encode(entry.getAuthor(), "UTF-8"));
+        final Writer rawWriter) throws JSONException, IOException {
+        final Resource thisResource = entry.getTextComment().getResource();
+        final ValueMap vm = thisResource.adaptTo(ValueMap.class);
+        final JSONArray timestampFields = new JSONArray();
+        // make sure we only migrate the fields we want
+        final Map<String, Boolean> fieldsToMigrate = new HashMap<String, Boolean>();
+        fieldsToMigrate.put("userIdentifier", true);
+        fieldsToMigrate.put("authorizableId", true);
+        fieldsToMigrate.put("published", true);
+        fieldsToMigrate.put("jcr:description", true);
+        fieldsToMigrate.put("jcr:title", true);
+        fieldsToMigrate.put("negative", true);
+        fieldsToMigrate.put("positive", true);
+        fieldsToMigrate.put("sentiment", true);
+        for (final Map.Entry<String, Object> prop : vm.entrySet()) {
+            if (!fieldsToMigrate.containsKey(prop.getKey())) {
+                continue;
+            }
+            final Object value = prop.getValue();
+            if (prop.getKey().equals("published") && value instanceof GregorianCalendar) {
+                timestampFields.put("added");
+                entryObject.key("added");
+                entryObject.value(((Calendar) value).getTimeInMillis());
+            } else {
+                entryObject.key(prop.getKey());
+                try {
+                    entryObject.value(URLEncoder.encode(prop.getValue().toString(), "UTF-8"));
+                } catch (UnsupportedEncodingException e) {
+                    throw new JSONException("Unsupported encoding - UTF-8", e);
+                }
+            }
+        }
+        // resource type has changed, so ignore the current one and force the new one
+        entryObject.key("sling:resourceType");
+        entryObject.value("social/journal/components/hbs/entry_topic");
+        if (timestampFields.length() > 0) {
+            entryObject.key(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS);
+            entryObject.value(timestampFields);
+        }
+        final Resource translationResource = thisResource.getChild("translation");
+        if (null != translationResource) {
+            extractTranslation(entryObject, translationResource);
+        }
         if (entry.hasAttachments()) {
             entryObject.key(ContentTypeDefinitions.LABEL_ATTACHMENTS);
             JSONWriter attachmentsArray = entryObject.array();
@@ -463,6 +494,18 @@ public class UGCExportHelper {
                 attachmentsArray.endObject();
             }
             entryObject.endArray();
+        }
+        if (entry.hasComments()) {
+            final Iterator<Comment> posts = entry.getComments();
+            entryObject.key(ContentTypeDefinitions.LABEL_REPLIES);
+            final JSONWriter replyWriter = entryObject.object();
+            while (posts.hasNext()) {
+                final Comment childPost = posts.next();
+                replyWriter.key(childPost.getId());
+                extractComment(replyWriter.object(), childPost, entry.getResource().getResourceResolver(), rawWriter);
+                replyWriter.endObject();
+            }
+            entryObject.endObject();
         }
     }
 
@@ -476,11 +519,16 @@ public class UGCExportHelper {
 
         final Iterable<Resource> translations = translationResource.getChildren();
         final ValueMap props = translationResource.adaptTo(ValueMap.class);
+        String languageLabel = (String) props.get("language");
+        if (null == languageLabel) {
+            languageLabel = (String) props.get("mtlanguage");
+            if (null == languageLabel) {
+                return;
+            }
+        }
         writer.key(ContentTypeDefinitions.LABEL_TRANSLATION);
         writer.object();
         writer.key("mtlanguage");
-        String languageLabel = (String) props.get("language");
-
         if (languageLabel.equals("nb")) {
             // SPECIAL CASE FOR LEGACY EXPORTER ONLY:
             // the label for norwegian changed between 6.0 and 6.1

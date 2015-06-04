@@ -68,6 +68,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
     Writer responseWriter;
     ZipOutputStream zip;
     Map<String, Boolean> entries;
+    Map<String, Boolean> entriesToSkip;
 
     @Override
     protected void doGet(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
@@ -86,6 +87,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
             throw new ServletException("Could not find a valid resource for export");
         }
         entries = new HashMap<String, Boolean>();
+        entriesToSkip = new HashMap<String, Boolean>();
         File outFile = null;
         try {
             outFile = File.createTempFile(UUID.randomUUID().toString(), ".zip");
@@ -99,6 +101,9 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
             InputStream inStream = null;
             try {
                 exportContent(resource, path);
+                if (entries.size() > 0) {
+                    exportCommentSystems(entries, entriesToSkip, resource, path);
+                }
                 IOUtils.closeQuietly(zip);
                 IOUtils.closeQuietly(bos);
                 IOUtils.closeQuietly(fos);
@@ -128,10 +133,10 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
 
     protected void exportContent(Resource rootNode, final String rootPath) throws IOException, ServletException {
 
-        String relPath = rootNode.getPath().substring(rootNode.getPath().indexOf(rootPath) + rootPath.length());
-        String entryName = relPath.isEmpty() ? ".root.json" : relPath + ".json";
+        final String relPath = rootNode.getPath().substring(rootNode.getPath().indexOf(rootPath) + rootPath.length());
+        String entryName = relPath.isEmpty() ? "root.json" : relPath + ".json";
         responseWriter = new OutputStreamWriter(zip);
-        JSONWriter writer = new JSONWriter(responseWriter);
+        final JSONWriter writer = new JSONWriter(responseWriter);
         writer.setTidy(true);
         if (rootNode.isResourceType(Comment.RESOURCE_TYPE)) {
             // if we're traversing a tree and come to a comment, we need to be looking at the comment system's
@@ -140,11 +145,8 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
             Comment comment = rootNode.adaptTo(Comment.class);
             if (null != comment) {
                 CommentSystem commentSystem = comment.getCommentSystem();
-                if (entries.containsKey(commentSystem.getPath())) { // make sure to only attempt export once
-                    return;
-                }
-                rootNode = commentSystem.getResource();
                 entries.put(commentSystem.getPath(), true);
+                return;
             }
         }
         try {
@@ -218,59 +220,8 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                     }
                     return;
                 }
-                final Iterator<Comment> comments = commentSystem.getComments();
-                if (comments.hasNext()) {
-                    zip.putNextEntry(new ZipEntry(entryName));
-                    final JSONWriter commentsNode = writer.object();
-                    commentsNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
-                    commentsNode.value(ContentTypeDefinitions.LABEL_COMMENTS);
-                    commentsNode.key(ContentTypeDefinitions.LABEL_CONTENT);
-                    commentsNode.object();
-                    while (comments.hasNext()) {
-                        final Comment comment = comments.next();
-                        commentsNode.key(comment.getId());
-                        final JSONWriter commentObject = commentsNode.object();
-                        UGCExportHelper.extractComment(commentObject, comment, rootNode.getResourceResolver(),
-                            responseWriter);
-                        commentsNode.endObject();
-                    }
-                    commentsNode.endObject();
-                    writer.endObject();
-                    responseWriter.flush();
-                    zip.closeEntry();
-                }
-            } else if (rootNode.isResourceType(Comment.RESOURCE_TYPE)) {
-                Comment comment = rootNode.adaptTo(Comment.class);
-                if (null != comment) {
-                    CommentSystem commentSystem = comment.getCommentSystem();
-                    final Iterator<Comment> comments = commentSystem.getComments();
-                    final String path = commentSystem.getPath();
-                    entryName = path;// .substring(rootNode.getPath().indexOf(rootPath)+rootPath.length());
-                    if (entries.containsKey(entryName)) {
-                        return;
-                    }
-                    if (comments.hasNext()) {
-                        entries.put(entryName, true);
-                        zip.putNextEntry(new ZipEntry(entryName));
-                        final JSONWriter commentsNode = writer.object();
-                        commentsNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
-                        commentsNode.value(ContentTypeDefinitions.LABEL_COMMENTS);
-                        commentsNode.key(ContentTypeDefinitions.LABEL_CONTENT);
-                        commentsNode.object();
-                        while (comments.hasNext()) {
-                            comment = comments.next();
-                            commentsNode.key(comment.getId());
-                            final JSONWriter commentObject = commentsNode.object();
-                            UGCExportHelper.extractComment(commentObject, comment, rootNode.getResourceResolver(),
-                                responseWriter);
-                            commentsNode.endObject();
-                        }
-                        commentsNode.endObject();
-                        writer.endObject();
-                        responseWriter.flush();
-                        zip.closeEntry();
-                    }
-                }
+                // we only export after all other nodes have been searched and exported as needed
+                entries.put(commentSystem.getPath(), true);
             } else if (rootNode.isResourceType(CalendarConstants.RT_CALENDAR_COMPONENT)
                     || rootNode.isResourceType(CalendarConstants.MIX_CALENDAR)
                     || rootNode.getResourceType().endsWith("calendar")) {
@@ -349,13 +300,20 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                 journalNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
                 journalNode.value(ContentTypeDefinitions.LABEL_JOURNAL);
                 journalNode.key(ContentTypeDefinitions.LABEL_CONTENT);
-                JSONWriter entryObjects = journalNode.array();
+                JSONWriter entryObjects = journalNode.object();
                 final List<JournalEntry> entries = journal.getEntries();
                 for (final JournalEntry entry : entries) {
+                    entryObjects.key(entry.getId());
                     UGCExportHelper.extractJournalEntry(entryObjects.object(), entry, responseWriter);
                     entryObjects.endObject();
+                    final Iterator<Comment> comments = entry.getComments();
+                    if (comments.hasNext()) {
+                        final Comment comment = comments.next();
+                        final CommentSystem commentSystem = comment.getCommentSystem();
+                        entriesToSkip.put(commentSystem.getPath(), true);
+                    }
                 }
-                journalNode.endArray();
+                journalNode.endObject();
                 writer.endObject();
                 responseWriter.flush();
                 zip.closeEntry();
@@ -369,4 +327,41 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
         }
     }
 
+    protected void exportCommentSystems(final Map<String, Boolean> entries, final Map<String, Boolean> entriesToSkip,
+                                        final Resource resource, final String path) throws IOException, JSONException {
+        for(final String commentSystemPath : entries.keySet()) {
+            if (!entriesToSkip.containsKey(commentSystemPath)) {
+                final String relPath = resource.getPath()
+                        .substring(resource.getPath().indexOf(path) + path.length());
+                String entryName = relPath.isEmpty() ? ".root.json" : relPath + ".json";
+                responseWriter = new OutputStreamWriter(zip);
+                final JSONWriter writer = new JSONWriter(responseWriter);
+                writer.setTidy(true);
+                final Resource commentSystemResource = resource.getResourceResolver()
+                        .getResource(commentSystemPath);
+                final CommentSystem commentSystem = commentSystemResource.adaptTo(CommentSystem.class);
+                final Iterator<Comment> comments = commentSystem.getComments();
+                if (comments.hasNext()) {
+                    zip.putNextEntry(new ZipEntry(entryName));
+                    final JSONWriter commentsNode = writer.object();
+                    commentsNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
+                    commentsNode.value(ContentTypeDefinitions.LABEL_COMMENTS);
+                    commentsNode.key(ContentTypeDefinitions.LABEL_CONTENT);
+                    commentsNode.object();
+                    while (comments.hasNext()) {
+                        final Comment comment = comments.next();
+                        commentsNode.key(comment.getId());
+                        final JSONWriter commentObject = commentsNode.object();
+                        UGCExportHelper.extractComment(commentObject, comment,
+                                resource.getResourceResolver(), responseWriter);
+                        commentsNode.endObject();
+                    }
+                    commentsNode.endObject();
+                    writer.endObject();
+                    responseWriter.flush();
+                    zip.closeEntry();
+                }
+            }
+        }
+    }
 }

@@ -40,6 +40,9 @@ import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.servlet.ServletException;
 
+import com.adobe.cq.social.commons.FileDataSource;
+import com.adobe.cq.social.journal.client.api.Journal;
+import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.sling.api.resource.ModifyingResourceProvider;
@@ -94,6 +97,9 @@ public class UGCImportHelper {
     private CalendarOperations calendarOperations;
 
     @Reference
+    private JournalOperations journalOperations;
+
+    @Reference
     private SocialUtils socialUtils;
 
     private SocialResourceProvider resProvider;
@@ -124,6 +130,11 @@ public class UGCImportHelper {
     public void setCalendarOperations(final CalendarOperations calendarOperations) {
         if (this.calendarOperations == null)
             this.calendarOperations = calendarOperations;
+    }
+
+    public void setJournalOperations(final JournalOperations journalOperations) {
+        if (this.journalOperations == null)
+            this.journalOperations = journalOperations;
     }
 
     public void setSocialUtils(final SocialUtils socialUtils) {
@@ -281,8 +292,8 @@ public class UGCImportHelper {
             throw new RuntimeException("Unable to set the tally response value: " + e.getMessage(), e);
         } catch (final IllegalArgumentException e) {
             // We can ignore this. It means that the value set for the response in the migrated data is no longer
-// valid.
-            // This happens for "#neutral#" which used to be a valid response, but was taken out in later versions.
+            // valid. This happens for "#neutral#" which used to be a valid response, but was taken out in later
+            // versions.
         }
     }
 
@@ -332,9 +343,19 @@ public class UGCImportHelper {
     }
 
     public void importJournalContent(final JsonParser jsonParser, final Resource resource,
-        final ResourceResolver resolver) throws JsonParseException, IOException {
-        // not yet implemented
-        jsonParser.skipChildren();
+        final ResourceResolver resolver) throws IOException, ServletException {
+
+        if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
+            jsonParser.nextToken(); // advance to first key in the object - should be the id value of the old post
+            while (jsonParser.getCurrentToken().equals(JsonToken.FIELD_NAME)) {
+                extractTopic(jsonParser, resource, resolver, journalOperations);
+                jsonParser.nextToken(); // get the next token - presumably a field name for the next post
+            }
+            jsonParser.nextToken(); // skip end token
+        } else {
+            throw new IOException("Improperly formed JSON - expected an OBJECT_START token, but got "
+                    + jsonParser.getCurrentToken().toString());
+        }
     }
 
     public void importCalendarContent(final JsonParser jsonParser, final Resource resource,
@@ -420,7 +441,6 @@ public class UGCImportHelper {
                                 createPost(resource, author, properties, attachments,
                                     resolver.adaptTo(Session.class), operations);
                             resProvider = SocialResourceUtils.getSocialResource(post).getResourceProvider();
-// resProvider.commit(resolver);
                         } catch (Exception e) {
                             throw new ServletException(e.getMessage(), e);
                         }
@@ -732,7 +752,7 @@ public class UGCImportHelper {
      * This class must implement DataSource in order to be used to create an attachment, and also FileDataSource in
      * order to be used by the filterAttachments method in AbstractCommentOperationService
      */
-    public static class AttachmentStruct implements DataSource {
+    public static class AttachmentStruct implements FileDataSource {
         private String filename;
         private String mimeType;
         private InputStream data;
