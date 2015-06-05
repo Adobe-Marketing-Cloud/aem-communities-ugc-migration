@@ -19,3 +19,7 @@
 .scf-importUploadPanel {
     padding: 10px;
 }
+
+span.file-selection-box {
+    position: relative;
+}
