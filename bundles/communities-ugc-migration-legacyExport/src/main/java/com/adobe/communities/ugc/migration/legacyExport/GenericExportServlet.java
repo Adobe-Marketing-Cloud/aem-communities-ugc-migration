@@ -313,7 +313,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                     if (comments.hasNext()) {
                         final Comment comment = comments.next();
                         final CommentSystem commentSystem = comment.getCommentSystem();
-                        entriesToSkip.put(commentSystem.getPath(), true);
+                        entriesToSkip.put(commentSystem.getResource().getPath(), true);
                     }
                 }
                 journalNode.endObject();
