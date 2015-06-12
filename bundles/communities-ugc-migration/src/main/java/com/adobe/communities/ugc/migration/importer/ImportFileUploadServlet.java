@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,8 +29,12 @@ import java.util.Random;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
 import javax.servlet.ServletException;
+import org.apache.sling.api.resource.ResourceUtil;
 
+import com.adobe.cq.social.scf.OperationException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.felix.scr.annotations.Component;
@@ -38,13 +43,18 @@ import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.jackrabbit.JcrConstants;
+import org.apache.jackrabbit.api.security.user.Authorizable;
+import org.apache.jackrabbit.api.security.user.Group;
+import org.apache.jackrabbit.api.security.user.UserManager;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.request.RequestParameter;
+import org.apache.sling.api.resource.LoginException;
 import org.apache.sling.api.resource.NonExistingResource;
 import org.apache.sling.api.resource.PersistenceException;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
+import org.apache.sling.api.resource.ResourceResolverFactory;
 import org.apache.sling.api.resource.ValueMap;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.commons.json.JSONException;
@@ -61,6 +71,9 @@ import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import com.adobe.cq.social.site.api.CommunitySiteService;
+
+import static org.apache.sling.api.resource.ResourceResolverFactory.SUBSERVICE;
 
 @Component(label = "UGC Migration File Importer",
         description = "Accepts a zipped archive of migration data, unzips its contents and saves in jcr tree",
@@ -70,6 +83,8 @@ import com.fasterxml.jackson.core.JsonToken;
 public class ImportFileUploadServlet extends SlingAllMethodsServlet {
 
     public final static String UPLOAD_DIR = "/etc/migration/uploadFile";
+
+    public final static String SERVICE_MIGRATION = "communities-user-admin";
 
     @Reference
     private ForumOperations forumOperations;
@@ -91,6 +106,9 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
 
     @Reference
     private SocialUtils socialUtils;
+
+    @Reference
+    private ResourceResolverFactory rrf;
     /**
      * The get operation returns a JSON string representing the current contents of the file repository holding our
      * current migration files. If necessary, this method will also create the files' repository resource.
@@ -103,8 +121,8 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
             throws ServletException, IOException {
 
         final ResourceResolver resolver = request.getResourceResolver();
-//        Authorizable auth = resolver.adaptTo(Authorizable.class);
-//        UserManager um = resolver.adaptTo(UserManager.class);
+
+        checkUserPrivileges(resolver);
 
         final Resource parentResource = resolver.getResource(UPLOAD_DIR);
         final JSONWriter writer = new JSONWriter(response.getWriter());
@@ -135,6 +153,8 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
                 throw new ServletException("Unable to output JSON", e);
             }
         }
+
+
         final Iterable<Resource> folders = parentResource.getChildren();
 
         try {
@@ -171,7 +191,6 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
         }
 
     }
-
     /**
      * Recursively populate the fileNames array
      * @param folder - the parent Resource
@@ -205,10 +224,14 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
 
 
         final ResourceResolver resolver = request.getResourceResolver();
+
+        checkUserPrivileges(resolver);
+
         final Resource parentResource = resolver.getResource(UPLOAD_DIR);
         if (null == parentResource || parentResource instanceof NonExistingResource) {
             throw new ServletException("upload directory hasn't been created");
         }
+
         // get the uploaded file
         final RequestParameter[] fileRequestParameters = request.getRequestParameters("file");
         if (fileRequestParameters == null || fileRequestParameters.length <= 0
@@ -297,8 +320,11 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
         while (zipEntry != null) {
             // store files under the provided folder
             try {
-                final String name = zipEntry.getName();
-                // TODO - somewhere here we need to make sure that the file name is safe for our system
+                final String name = ResourceUtil.normalize("/" + zipEntry.getName());
+                if (null == name) {
+                    // normalize filename and if they aren't inside upload path, don't store them
+                    continue;
+                }
                 Resource parent = folder;
                 Resource subFolder = null;
                 for (final String subFolderName : name.split("/")) {
@@ -337,6 +363,9 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
     protected void doDelete(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
             throws ServletException, IOException {
 
+        final ResourceResolver resolver = request.getResourceResolver();
+        checkUserPrivileges(resolver);
+
         final RequestParameter filePathParam = request.getRequestParameter("filePath");
         if (null == filePathParam) {
             throw new ServletException("Required parameter 'filePath' missing");
@@ -345,7 +374,7 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
         if (!filePath.startsWith(UPLOAD_DIR)) {
             throw new ServletException("Path to file resource lies outside migration import path");
         }
-        final Resource fileResource = request.getResourceResolver().getResource(filePath);
+        final Resource fileResource = resolver.getResource(filePath);
         if (null != fileResource && !(fileResource instanceof NonExistingResource)) {
             deleteResource(fileResource);
         }
@@ -382,7 +411,10 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
             throws ServletException, IOException {
 
         final String path = request.getRequestParameter("path").getString();
-        final Resource resource = request.getResourceResolver().getResource(path);
+        final ResourceResolver resolver = request.getResourceResolver();
+        checkUserPrivileges(resolver);
+
+        final Resource resource = resolver.getResource(path);
         if (resource == null) {
             throw new ServletException("Could not find a valid resource for import");
         }
@@ -390,7 +422,7 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
         if (!filePath.startsWith(ImportFileUploadServlet.UPLOAD_DIR)) {
             throw new ServletException("Path to file resource lies outside migration import path");
         }
-        final Resource fileResource = request.getResourceResolver().getResource(filePath);
+        final Resource fileResource = resolver.getResource(filePath);
         if (fileResource == null) {
             throw new ServletException("Could not find a valid file resource to read");
         }
@@ -405,7 +437,7 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
                     final JsonParser jsonParser = new JsonFactory().createParser(inputStream);
                     jsonParser.nextToken(); // get the first token
 
-                    importFile(jsonParser, resource, request.getResourceResolver());
+                    importFile(jsonParser, resource, resolver);
                     deleteResource(fileResource);
                     return;
                 }
@@ -497,6 +529,30 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
             }
         } else {
             throw new ServletException("Invalid Json format");
+        }
+    }
+
+    private void checkUserPrivileges(final ResourceResolver resolver) throws ServletException {
+
+        ResourceResolver serviceUserResolver;
+
+        try {
+            serviceUserResolver = rrf.getServiceResourceResolver(Collections.<String, Object>singletonMap(SUBSERVICE,
+                    SERVICE_MIGRATION));
+        } catch (final LoginException e) {
+            throw new ServletException("Could not obtain a resolver with service user: " + SERVICE_MIGRATION, e);
+        }
+        // determine whether the current session belongs to the group communities-user-admin
+        final UserManager um = serviceUserResolver.adaptTo(UserManager.class);
+        try {
+            final Authorizable adminGroup = um.getAuthorizable("administrators");
+            final Authorizable user = resolver.adaptTo(Authorizable.class);
+            final Group administrators = (Group) adminGroup;
+            if (!administrators.isMember(user)) {
+                throw new ServletException("Insufficient access");
+            }
+        } catch (final RepositoryException e) {
+            throw new ServletException("Cannot access repository", e);
         }
     }
 }

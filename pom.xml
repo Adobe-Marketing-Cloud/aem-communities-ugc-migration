@@ -34,6 +34,7 @@
     <modules>
         <module>bundles/communities-ugc-migration</module>
         <module>bundles/communities-ugc-migration-legacyExport</module>
+        <module>content</module>
     </modules>
 
 </project>
