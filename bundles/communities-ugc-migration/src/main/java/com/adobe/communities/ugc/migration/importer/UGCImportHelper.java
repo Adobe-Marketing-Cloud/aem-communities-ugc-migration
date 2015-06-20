@@ -26,6 +26,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -40,15 +41,20 @@ import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.servlet.ServletException;
 
-import com.adobe.cq.social.commons.FileDataSource;
+import com.adobe.cq.social.ugcbase.core.attachments.FileDataSource;
 import com.adobe.cq.social.journal.client.api.Journal;
 import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.felix.scr.annotations.Reference;
+import org.apache.jackrabbit.api.security.user.Authorizable;
+import org.apache.jackrabbit.api.security.user.Group;
+import org.apache.jackrabbit.api.security.user.UserManager;
+import org.apache.sling.api.resource.LoginException;
 import org.apache.sling.api.resource.ModifyingResourceProvider;
 import org.apache.sling.api.resource.PersistenceException;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
+import org.apache.sling.api.resource.ResourceResolverFactory;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.JSONObject;
 import org.slf4j.Logger;
@@ -78,6 +84,8 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 
+import static org.apache.sling.api.resource.ResourceResolverFactory.SUBSERVICE;
+
 public class UGCImportHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(UGCImportHelper.class);
 
@@ -103,6 +111,8 @@ public class UGCImportHelper {
     private SocialUtils socialUtils;
 
     private SocialResourceProvider resProvider;
+
+    public final static String SERVICE_MIGRATION = "communities-user-admin";
 
     public UGCImportHelper() {
     }
@@ -628,6 +638,12 @@ public class UGCImportHelper {
     protected static List<DataSource> getAttachments(final JsonParser jsonParser) throws IOException {
         // an attachment has only 3 fields - jcr:data, filename, jcr:mimeType
         List<DataSource> attachments = new ArrayList<DataSource>();
+        getAttachments(jsonParser, attachments);
+        return attachments;
+    }
+
+    protected static void getAttachments(final JsonParser jsonParser, final List attachments) throws IOException {
+
         JsonToken token = jsonParser.nextToken(); // skip START_ARRAY token
         String filename;
         String mimeType;
@@ -653,13 +669,12 @@ public class UGCImportHelper {
             }
             if (filename != null && mimeType != null && inputStream != null) {
                 attachments.add(new UGCImportHelper.AttachmentStruct(filename, inputStream, mimeType,
-                    databytes.length));
+                        databytes.length));
             } else {
                 // TODO - log an error
             }
             token = jsonParser.nextToken();
         }
-        return attachments;
     }
 
     protected static void importTranslation(final JsonParser jsonParser, final Resource post) throws IOException {
@@ -745,6 +760,31 @@ public class UGCImportHelper {
             // it's possible that no translations existed, so we need to make sure the translation resource (which
             // includes the original post's detected language) is created anyway
             post.getResourceResolver().create(post, "translation", properties);
+        }
+    }
+
+    public static void checkUserPrivileges(final ResourceResolver resolver, final ResourceResolverFactory rrf)
+            throws ServletException {
+
+        ResourceResolver serviceUserResolver;
+
+        try {
+            serviceUserResolver = rrf.getServiceResourceResolver(Collections.<String, Object>singletonMap(SUBSERVICE,
+                    SERVICE_MIGRATION));
+        } catch (final LoginException e) {
+            throw new ServletException("Could not obtain a resolver with service user: " + SERVICE_MIGRATION, e);
+        }
+        // determine whether the current session belongs to the group communities-user-admin
+        final UserManager um = serviceUserResolver.adaptTo(UserManager.class);
+        try {
+            final Authorizable adminGroup = um.getAuthorizable("administrators");
+            final Authorizable user = resolver.adaptTo(Authorizable.class);
+            final Group administrators = (Group) adminGroup;
+            if (!administrators.isMember(user)) {
+                throw new ServletException("Insufficient access");
+            }
+        } catch (final RepositoryException e) {
+            throw new ServletException("Cannot access repository", e);
         }
     }
 

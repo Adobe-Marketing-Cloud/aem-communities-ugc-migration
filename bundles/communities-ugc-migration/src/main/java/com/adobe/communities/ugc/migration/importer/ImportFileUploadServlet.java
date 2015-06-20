@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Collections;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,12 +28,8 @@ import java.util.Random;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import javax.jcr.RepositoryException;
-import javax.jcr.Session;
 import javax.servlet.ServletException;
-import org.apache.sling.api.resource.ResourceUtil;
 
-import com.adobe.cq.social.scf.OperationException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.felix.scr.annotations.Component;
@@ -43,18 +38,15 @@ import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.jackrabbit.JcrConstants;
-import org.apache.jackrabbit.api.security.user.Authorizable;
-import org.apache.jackrabbit.api.security.user.Group;
-import org.apache.jackrabbit.api.security.user.UserManager;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.request.RequestParameter;
-import org.apache.sling.api.resource.LoginException;
 import org.apache.sling.api.resource.NonExistingResource;
 import org.apache.sling.api.resource.PersistenceException;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
 import org.apache.sling.api.resource.ResourceResolverFactory;
+import org.apache.sling.api.resource.ResourceUtil;
 import org.apache.sling.api.resource.ValueMap;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.commons.json.JSONException;
@@ -64,16 +56,13 @@ import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
 import com.adobe.cq.social.calendar.client.endpoints.CalendarOperations;
 import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
 import com.adobe.cq.social.forum.client.endpoints.ForumOperations;
+import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
 import com.adobe.cq.social.qna.client.endpoints.QnaForumOperations;
 import com.adobe.cq.social.tally.client.endpoints.TallyOperationsService;
-import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
 import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.adobe.cq.social.site.api.CommunitySiteService;
-
-import static org.apache.sling.api.resource.ResourceResolverFactory.SUBSERVICE;
 
 @Component(label = "UGC Migration File Importer",
         description = "Accepts a zipped archive of migration data, unzips its contents and saves in jcr tree",
@@ -83,8 +72,6 @@ import static org.apache.sling.api.resource.ResourceResolverFactory.SUBSERVICE;
 public class ImportFileUploadServlet extends SlingAllMethodsServlet {
 
     public final static String UPLOAD_DIR = "/etc/migration/uploadFile";
-
-    public final static String SERVICE_MIGRATION = "communities-user-admin";
 
     @Reference
     private ForumOperations forumOperations;
@@ -122,7 +109,7 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
 
         final ResourceResolver resolver = request.getResourceResolver();
 
-        checkUserPrivileges(resolver);
+        UGCImportHelper.checkUserPrivileges(resolver, rrf);
 
         final Resource parentResource = resolver.getResource(UPLOAD_DIR);
         final JSONWriter writer = new JSONWriter(response.getWriter());
@@ -225,7 +212,7 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
 
         final ResourceResolver resolver = request.getResourceResolver();
 
-        checkUserPrivileges(resolver);
+        UGCImportHelper.checkUserPrivileges(resolver, rrf);
 
         final Resource parentResource = resolver.getResource(UPLOAD_DIR);
         if (null == parentResource || parentResource instanceof NonExistingResource) {
@@ -364,7 +351,7 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
             throws ServletException, IOException {
 
         final ResourceResolver resolver = request.getResourceResolver();
-        checkUserPrivileges(resolver);
+        UGCImportHelper.checkUserPrivileges(resolver, rrf);
 
         final RequestParameter filePathParam = request.getRequestParameter("filePath");
         if (null == filePathParam) {
@@ -412,7 +399,7 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
 
         final String path = request.getRequestParameter("path").getString();
         final ResourceResolver resolver = request.getResourceResolver();
-        checkUserPrivileges(resolver);
+        UGCImportHelper.checkUserPrivileges(resolver, rrf);
 
         final Resource resource = resolver.getResource(path);
         if (resource == null) {
@@ -529,30 +516,6 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
             }
         } else {
             throw new ServletException("Invalid Json format");
-        }
-    }
-
-    private void checkUserPrivileges(final ResourceResolver resolver) throws ServletException {
-
-        ResourceResolver serviceUserResolver;
-
-        try {
-            serviceUserResolver = rrf.getServiceResourceResolver(Collections.<String, Object>singletonMap(SUBSERVICE,
-                    SERVICE_MIGRATION));
-        } catch (final LoginException e) {
-            throw new ServletException("Could not obtain a resolver with service user: " + SERVICE_MIGRATION, e);
-        }
-        // determine whether the current session belongs to the group communities-user-admin
-        final UserManager um = serviceUserResolver.adaptTo(UserManager.class);
-        try {
-            final Authorizable adminGroup = um.getAuthorizable("administrators");
-            final Authorizable user = resolver.adaptTo(Authorizable.class);
-            final Group administrators = (Group) adminGroup;
-            if (!administrators.isMember(user)) {
-                throw new ServletException("Insufficient access");
-            }
-        } catch (final RepositoryException e) {
-            throw new ServletException("Cannot access repository", e);
         }
     }
 }

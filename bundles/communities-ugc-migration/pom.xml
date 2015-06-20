@@ -118,6 +118,22 @@
         </dependencies>
     </dependencyManagement>
     <dependencies>
+        <dependency>
+            <groupId>org.apache.sling</groupId>
+            <artifactId>org.apache.sling.fragment.ws</artifactId>
+            <version>1.0.2</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.compendium</artifactId>
+            <version>5.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.core</artifactId>
+            <version>6.0.0</version>
+        </dependency>
         <!-- APIs -->
         <dependency>
             <groupId>com.adobe.cq.social</groupId>
@@ -185,6 +201,12 @@
             <version>1.0.144</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>com.adobe.cq.social</groupId>
+            <artifactId>cq-social-messaging</artifactId>
+            <version>1.2.34</version>
+            <scope>provided</scope>
+        </dependency>
         <!-- Sling -->
         <dependency>
             <groupId>org.apache.sling</groupId>
@@ -220,9 +242,21 @@
             <version>5.16.20</version>
         </dependency>
         <dependency>
+            <groupId>com.adobe.granite</groupId>
+            <artifactId>com.adobe.granite.xssprotection</artifactId>
+            <version>5.5.62</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>com.adobe.cq.social</groupId>
             <artifactId>cq-social-scf-api</artifactId>
             <version>1.0.5</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.adobe.cq.social</groupId>
+            <artifactId>cq-social-ugc-search-collections</artifactId>
+            <version>1.2.57</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
