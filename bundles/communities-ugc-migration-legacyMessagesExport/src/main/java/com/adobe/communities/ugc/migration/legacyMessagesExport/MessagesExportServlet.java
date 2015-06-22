@@ -15,7 +15,7 @@
  * is strictly forbidden unless prior written permission is obtained
  * from Adobe Systems Incorporated.
  **************************************************************************/
-package com.adobe.communities.ugc.migration.legacyExport;
+package com.adobe.communities.ugc.migration.legacyMessagesExport;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -58,6 +58,8 @@ import org.apache.sling.commons.json.io.JSONWriter;
 import com.adobe.cq.social.messaging.api.Message;
 import com.adobe.cq.social.messaging.api.MessageFilter;
 import com.adobe.cq.social.messaging.api.MessagingService;
+import com.adobe.communities.ugc.migration.legacyExport.ContentTypeDefinitions;
+import com.adobe.communities.ugc.migration.legacyExport.UGCExportHelper;
 
 @Component(label = "Messages Exporter",
         description = "Moves messages into a zip archive for storage or re-import", specVersion = "1.1")
