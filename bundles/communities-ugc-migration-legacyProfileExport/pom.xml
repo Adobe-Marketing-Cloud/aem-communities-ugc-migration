@@ -24,7 +24,7 @@
     <!-- P R O J E C T  D E S C R I P T I O N                                   -->
     <!-- ====================================================================== -->
     <groupId>com.adobe.communities</groupId>
-    <artifactId>communities-ugc-migration-legacyMessagesExport</artifactId>
+    <artifactId>communities-ugc-migration-legacyProfileExport</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>bundle</packaging>
     <name>AEM Social Communities UGC Messages Migration - Bundle</name>
@@ -157,9 +157,28 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.apache.sling</groupId>
+            <artifactId>org.apache.sling.jcr.api</artifactId>
+            <version>2.2.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.4</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>com.adobe.cq.social</groupId>
             <artifactId>cq-social-storage</artifactId>
             <version>1.0.11</version>
+            <scope>provided</scope>
+        </dependency>
+        <!--Granite Social Graph-->
+        <dependency>
+            <groupId>com.adobe.granite</groupId>
+            <artifactId>com.adobe.granite.socialgraph</artifactId>
+            <version>0.0.18</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

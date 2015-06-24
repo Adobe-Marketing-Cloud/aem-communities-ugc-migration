@@ -259,5 +259,17 @@
             <version>1.2.57</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>com.adobe.cq.social</groupId>
+            <artifactId>cq-social-graph-api</artifactId>
+            <version>1.0.14</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.adobe.granite</groupId>
+            <artifactId>com.adobe.granite.socialgraph</artifactId>
+            <version>0.0.18</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 </project>
