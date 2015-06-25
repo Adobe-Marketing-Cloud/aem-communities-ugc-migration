@@ -41,6 +41,11 @@ import org.apache.sling.commons.json.io.JSONWriter;
 import javax.jcr.RepositoryException;
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 @Component(label = "Profile Scores Exporter",
         description = "Moves profile scores into a zip archive for storage or re-import", specVersion = "1.1")
@@ -73,10 +78,15 @@ public class ScoresExportServlet extends SlingAllMethodsServlet {
         Iterable<Resource> children = resource.getChildren();
         for (final Resource child : children) {
             if (child.isResourceType("rep:User")) {
-                long score = getScoreForUser(resolver, child.getName());
-                if (score > 0) {
+                Map<String, Long> scores = getScoreForUser(resolver, child.getName(), getScoreTypes(resolver));
+                if (!scores.isEmpty()) {
                     writer.key(child.getName());
-                    writer.value(score);
+                    writer.object();
+                    for (final String scoreType : scores.keySet()) {
+                        writer.key(scoreType);
+                        writer.value(scores.get(scoreType));
+                    }
+                    writer.endObject();
                 }
             } else {
                 exportScores(writer, child, resolver);
@@ -84,17 +94,42 @@ public class ScoresExportServlet extends SlingAllMethodsServlet {
         }
     }
 
-    private long getScoreForUser(final ResourceResolver resolver, final String authId) throws ServletException {
-        long result = 0L;
+    private Iterator<String> getScoreTypes(final ResourceResolver resolver) {
+        List<String> scoreTypes = new ArrayList<String>();
+        final Resource rootNode = resolver.getResource("/etc/segmentation/score");
+        if (null == rootNode) {
+            return null;
+        }
+        final Iterable<Resource> scoreNodes = rootNode.getChildren();
+        for (final Resource scoreNode : scoreNodes) {
+            ValueMap vm = scoreNode.adaptTo(ValueMap.class);
+            if (vm.get("jcr:primaryType").equals("cq:Page")) {
+                final Resource content = scoreNode.getChild("jcr:content");
+                final ValueMap valueMap = content.adaptTo(ValueMap.class);
+                if (valueMap.containsKey("sname")) {
+                    final String[] scoreNames = (String[]) valueMap.get("sname");
+                    scoreTypes.add(scoreNames[0]);
+                }
+            }
+        }
+        return scoreTypes.iterator();
+    }
+
+    private Map<String, Long> getScoreForUser(final ResourceResolver resolver, final String authId,
+                                              final Iterator<String> scoreTypes) throws ServletException {
+        Map<String, Long> result = new HashMap<String, Long>();
         try {
             final UserPropertiesManager userManager = userPropertiesService.createUserPropertiesManager(resolver);
             final UserProperties userProps = userManager.getUserProperties(authId, "profile");
             final Resource scoreResource = getScoreResource(resolver, userProps, ScoringConstants.SCORING_NODE);
             if (null == scoreResource) {
-                return 0L;
+                return result;
             }
             final ValueMap props = ResourceUtil.getValueMap(scoreResource);
-            result = props.get("communityScore", 0L);
+            while (scoreTypes.hasNext()) {
+                final String scoreType = scoreTypes.next();
+                result.put(scoreType, props.get(scoreType, 0L));
+            }
         } catch (final RepositoryException e) {
             throw new ServletException("user [" + authId + "] doesn't exist: or unable to get score ", e);
         }

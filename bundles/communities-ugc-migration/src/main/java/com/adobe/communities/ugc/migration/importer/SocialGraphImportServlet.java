@@ -61,7 +61,7 @@ public class SocialGraphImportServlet extends SlingAllMethodsServlet {
     private SocialComponentFactoryManager componentFactoryManager;
 
     /**
-     * The post operation accepts uploaded zip files, then explodes their contents and saves them into the jcr tree
+     * The post operation accepts a json file, parses it and applies the social graph relationships to local profiles
      * @param request - the request
      * @param response - the response
      * @throws javax.servlet.ServletException
