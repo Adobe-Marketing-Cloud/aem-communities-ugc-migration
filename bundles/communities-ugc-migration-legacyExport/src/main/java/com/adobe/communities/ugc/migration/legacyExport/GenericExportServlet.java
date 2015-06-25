@@ -143,8 +143,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
         writer.setTidy(true);
         if (rootNode.isResourceType(Comment.RESOURCE_TYPE)) {
             // if we're traversing a tree and come to a comment, we need to be looking at the comment system's
-// resource instead
-            // of the resource for the comment itself as we continue our dive.
+            // resource instead of the resource for the comment itself as we continue our dive.
             Comment comment = rootNode.adaptTo(Comment.class);
             if (null != comment) {
                 CommentSystem commentSystem = comment.getCommentSystem();
@@ -230,7 +229,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                     || rootNode.getResourceType().endsWith("calendar")) {
                 CqCalendar calendar = rootNode.adaptTo(CqCalendar.class);
                 if (calendar == null) { // avoid throwing a null pointer exception if this node isn't actually a
-// calendar
+                                        // calendar
                     for (final Resource resource : rootNode.getChildren()) {
                         exportContent(resource, rootPath);
                     }

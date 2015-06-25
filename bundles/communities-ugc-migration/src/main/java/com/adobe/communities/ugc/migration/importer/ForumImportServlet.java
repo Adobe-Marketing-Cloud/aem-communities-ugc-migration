@@ -19,7 +19,6 @@ package com.adobe.communities.ugc.migration.importer;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Writer;
 
 import javax.servlet.ServletException;
 
@@ -32,6 +31,8 @@ import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.request.RequestParameter;
 import org.apache.sling.api.resource.Resource;
+import org.apache.sling.api.resource.ResourceResolver;
+import org.apache.sling.api.resource.ResourceResolverFactory;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
@@ -57,6 +58,9 @@ public class ForumImportServlet extends SlingAllMethodsServlet {
     @Reference
     private SocialUtils socialUtils;
 
+    @Reference
+    private ResourceResolverFactory rrf;
+
     private SocialResourceProvider resProvider;
 
     @Reference
@@ -65,14 +69,12 @@ public class ForumImportServlet extends SlingAllMethodsServlet {
     @Reference
     private TallyOperationsService tallyOperationsService;
 
-    protected void doGet(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
-        throws IOException {
-        Writer responseWriter = response.getWriter();
-        responseWriter.append("Hello world");
-    }
-
     protected void doPost(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
         throws ServletException, IOException {
+
+        final ResourceResolver resolver = request.getResourceResolver();
+
+        UGCImportHelper.checkUserPrivileges(resolver, rrf);
 
         final UGCImportHelper importHelper = new UGCImportHelper();
         importHelper.setForumOperations(forumOperations);
@@ -110,8 +112,6 @@ public class ForumImportServlet extends SlingAllMethodsServlet {
                                             resource.getResourceResolver(), getOperationsService());
                                         token = jsonParser.nextToken();
                                     }
-// } catch (final OperationException e) {
-// throw new ServletException("Encountered an OperationException", e);
                                 } catch (final IOException e) {
                                     throw new ServletException("Encountered an IOException", e);
                                 }
@@ -131,7 +131,6 @@ public class ForumImportServlet extends SlingAllMethodsServlet {
                 throw new ServletException("Invalid Json format");
             }
         }
-        return;
     }
 
     protected CommentOperations getOperationsService() {

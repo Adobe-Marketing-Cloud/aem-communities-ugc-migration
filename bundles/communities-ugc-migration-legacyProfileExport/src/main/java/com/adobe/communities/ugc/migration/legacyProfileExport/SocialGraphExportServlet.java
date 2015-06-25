@@ -34,7 +34,6 @@ import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.io.JSONWriter;
 import org.apache.sling.jcr.api.SlingRepository;
 
-import javax.jcr.RepositoryException;
 import javax.servlet.ServletException;
 import java.io.IOException;
 

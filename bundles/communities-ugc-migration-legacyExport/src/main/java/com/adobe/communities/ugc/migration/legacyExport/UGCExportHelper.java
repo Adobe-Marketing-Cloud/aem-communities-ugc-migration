@@ -53,8 +53,6 @@ import com.adobe.cq.social.tally.PollResponse;
 import com.adobe.cq.social.tally.ResponseValue;
 import com.adobe.cq.social.tally.TallyConstants;
 
-//import com.adobe.communities.ugc.migration.legacyExport.ContentTypeDefinitions;
-
 public class UGCExportHelper {
 
     private final static int DATA_ENCODING_CHUNK_SIZE = 1440;
@@ -272,6 +270,29 @@ public class UGCExportHelper {
                 }
                 writer.key(prop.getKey());
                 writer.value(list);
+            } else if (prop.getKey().equals("sentiment")) {
+                    writer.key(prop.getKey());
+                    //1 = 1, 2 = 3, 3 = 5, 4 = 8, 5 = 10
+                    short shortValue = Short.parseShort(value.toString());
+                    switch (shortValue) {
+                        case 1:
+                            writer.value(1);
+                            break;
+                        case 2:
+                            writer.value(3);
+                            break;
+                        case 3:
+                            writer.value(5);
+                            break;
+                        case 4:
+                            writer.value(8);
+                            break;
+                        case 5:
+                            writer.value(10);
+                            break;
+                        default:
+                            writer.value(value);
+                    }
             } else if (value instanceof GregorianCalendar) {
                 timestampFields.put(prop.getKey());
                 writer.key(prop.getKey());
@@ -373,6 +394,29 @@ public class UGCExportHelper {
             } else if (prop.getKey().equals("sling:resourceType")) {
                 writer.key(prop.getKey());
                 writer.value(resourceType);
+            } else if (prop.getKey().equals("sentiment")) {
+                writer.key(prop.getKey());
+                //1 = 1, 2 = 3, 3 = 5, 4 = 8, 5 = 10
+                short shortValue = Short.parseShort(value.toString());
+                switch (shortValue) {
+                    case 1:
+                        writer.value(1);
+                        break;
+                    case 2:
+                        writer.value(3);
+                        break;
+                    case 3:
+                        writer.value(5);
+                        break;
+                    case 4:
+                        writer.value(8);
+                        break;
+                    case 5:
+                        writer.value(10);
+                        break;
+                    default:
+                        writer.value(value);
+                }
             } else {
                 writer.key(prop.getKey());
                 try {
@@ -627,6 +671,5 @@ public class UGCExportHelper {
             object.key(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS);
             object.value(timestampFields);
         }
-        // not yet implemented
     }
 }

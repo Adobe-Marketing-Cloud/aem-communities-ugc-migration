@@ -39,9 +39,6 @@ import org.apache.sling.commons.json.io.JSONWriter;
 import com.adobe.cq.social.forum.api.Forum;
 import com.adobe.cq.social.forum.api.Post;
 
-//import com.adobe.communities.ugc.migration.legacyExport.ContentTypeDefinitions;
-//import com.adobe.communities.ugc.migration.legacyExport.UGCExportHelper;
-
 @Component(label = "UGC Exporter for Forum Data",
         description = "Moves forum and qna data into json files for storage or re-import", specVersion = "1.0")
 @Service

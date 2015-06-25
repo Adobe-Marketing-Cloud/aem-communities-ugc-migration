@@ -42,7 +42,6 @@ import javax.jcr.Session;
 import javax.servlet.ServletException;
 
 import com.adobe.cq.social.ugcbase.core.attachments.FileDataSource;
-import com.adobe.cq.social.journal.client.api.Journal;
 import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.felix.scr.annotations.Reference;
@@ -80,14 +79,13 @@ import com.adobe.cq.social.tally.client.endpoints.TallyOperationsService;
 import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.adobe.cq.social.ugcbase.core.SocialResourceUtils;
 import com.adobe.granite.security.user.UserProperties;
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 
 import static org.apache.sling.api.resource.ResourceResolverFactory.SUBSERVICE;
 
 public class UGCImportHelper {
-    private static final Logger LOGGER = LoggerFactory.getLogger(UGCImportHelper.class);
+    private static final Logger LOG = LoggerFactory.getLogger(UGCImportHelper.class);
 
     @Reference
     private ForumOperations forumOperations;
@@ -565,7 +563,8 @@ public class UGCImportHelper {
                 message = properties.get("jcr:title").toString();
                 if (message == null || message.equals("")) {
                     // If title and message are both blank, we skip this entry and
-                    // TODO - log the fact that we skipped it
+                    // log the fact that we skipped it
+                    LOG.warn("We failed to create a post because it had an empty message and title");
                     return false;
                 } else {
                     properties.put(Comment.PROP_MESSAGE, message);
@@ -573,7 +572,8 @@ public class UGCImportHelper {
                 }
             } else {
                 // If title and message are both blank, we skip this entry and
-                // TODO - log the fact that we skipped it
+                // log the fact that we skipped it
+                LOG.warn("We failed to create a post because it had an empty message and title");
                 return false;
             }
         }
@@ -671,7 +671,8 @@ public class UGCImportHelper {
                 attachments.add(new UGCImportHelper.AttachmentStruct(filename, inputStream, mimeType,
                         databytes.length));
             } else {
-                // TODO - log an error
+                // log an error
+                LOG.error("We expected to import an attachment, but information was missing and nothing was imported");
             }
             token = jsonParser.nextToken();
         }

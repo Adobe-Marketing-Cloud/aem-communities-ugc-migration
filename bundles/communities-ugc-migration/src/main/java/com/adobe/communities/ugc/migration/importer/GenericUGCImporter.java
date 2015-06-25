@@ -34,10 +34,9 @@ import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.request.RequestParameter;
 import org.apache.sling.api.resource.NonExistingResource;
-import org.apache.sling.api.resource.PersistenceException;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
-import org.apache.sling.api.resource.ResourceUtil;
+import org.apache.sling.api.resource.ResourceResolverFactory;
 import org.apache.sling.api.resource.ValueMap;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 
@@ -76,9 +75,15 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
     @Reference
     private SocialUtils socialUtils;
 
+    @Reference
+    private ResourceResolverFactory rrf;
+
     protected void doPost(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
         throws ServletException, IOException {
 
+        final ResourceResolver resolver = request.getResourceResolver();
+
+        UGCImportHelper.checkUserPrivileges(resolver, rrf);
 
         // finally get the uploaded file
         final RequestParameter[] fileRequestParameters = request.getRequestParameters("file");
@@ -90,7 +95,7 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
 
                 // get the resource we'll be adding new content to
                 final String path = request.getRequestParameter("path").getString();
-                final Resource resource = request.getResourceResolver().getResource(path);
+                final Resource resource = resolver.getResource(path);
                 if (resource == null) {
                     throw new ServletException("Could not find a valid resource for import");
                 }
@@ -112,7 +117,7 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                 ZipEntry zipEntry = zipInputStream.getNextEntry();
                 while (zipEntry != null && paths.length > counter) {
                     final String path = paths[counter].getString();
-                    final Resource resource = request.getResourceResolver().getResource(path);
+                    final Resource resource = resolver.getResource(path);
                     if (resource == null) {
                         throw new ServletException("Could not find a valid resource for import");
                     }
@@ -135,8 +140,13 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
 
     protected void doGet(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
             throws ServletException, IOException {
+
+        final ResourceResolver resolver = request.getResourceResolver();
+
+        UGCImportHelper.checkUserPrivileges(resolver, rrf);
+
         final String path = request.getRequestParameter("path").getString();
-        final Resource resource = request.getResourceResolver().getResource(path);
+        final Resource resource = resolver.getResource(path);
         if (resource == null) {
             throw new ServletException("Could not find a valid resource for import");
         }
@@ -144,7 +154,7 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
         if (!filePath.startsWith(ImportFileUploadServlet.UPLOAD_DIR)) {
             throw new ServletException("Path to file resource lies outside migration import path");
         }
-        final Resource fileResource = request.getResourceResolver().getResource(filePath);
+        final Resource fileResource = resolver.getResource(filePath);
         if (fileResource == null) {
             throw new ServletException("Could not find a valid file resource to read");
         }

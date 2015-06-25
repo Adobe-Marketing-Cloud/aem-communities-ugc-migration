@@ -33,9 +33,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-//import javax.activation.DataSource;
-//import javax.activation.FileDataSource;
-
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.jcr.RepositoryException;
@@ -44,12 +41,10 @@ import javax.servlet.ServletException;
 import com.adobe.cq.social.messaging.api.Message;
 import com.adobe.cq.social.messaging.api.MessageFilter;
 import com.adobe.cq.social.messaging.api.MessagingService;
-import com.adobe.cq.social.messaging.client.endpoints.impl.MessagingOperationsServiceImpl;
 import com.adobe.cq.social.scf.ClientUtilityFactory;
 import com.adobe.cq.social.scf.OperationException;
 import com.adobe.cq.social.ugcbase.core.attachments.FileDataSource;
 import com.adobe.cq.social.ugcbase.SocialUtils;
-import com.adobe.cq.social.user.endpoints.impl.CommunityUserOperationService;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -319,13 +314,9 @@ public class MessagesImportServlet extends SlingAllMethodsServlet {
         }
 
         private void bindService(@Nonnull final ServiceReference reference, final Object service) {
-            final MessagingOperationsService existing =
-                    serviceCache.putIfAbsent(
-                            String.valueOf(reference.getProperty(SERVICE_SELECTOR_PROPERTY)),
-                            (MessagingOperationsService) service);
-            if (existing != null) {
-                // do nothing
-            }
+            serviceCache.putIfAbsent(
+                    String.valueOf(reference.getProperty(SERVICE_SELECTOR_PROPERTY)),
+                        (MessagingOperationsService) service);
         }
 
         private void unbindService(@Nonnull final ServiceReference reference) {

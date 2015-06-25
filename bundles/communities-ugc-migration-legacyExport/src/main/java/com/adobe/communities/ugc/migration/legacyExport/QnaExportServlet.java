@@ -17,8 +17,6 @@
  **************************************************************************/
 package com.adobe.communities.ugc.migration.legacyExport;
 
-//import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
-
 import java.io.IOException;
 import java.util.List;
 
