@@ -607,7 +607,18 @@ public class UGCImportHelper {
                         requestParams.put(CalendarRequestConstants.END_DATE, df.format(date));
                     }
                 } else if (field.equals(CalendarRequestConstants.TAGS)) {
-                    // TODO - handle tags correctly
+                    List<String> tags = new ArrayList<String>();
+                    if (jsonParser.getCurrentToken().equals(JsonToken.START_ARRAY)) {
+                        token = jsonParser.nextToken();
+                        while (!token.equals(JsonToken.END_ARRAY)) {
+                            tags.add(URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8"));
+                            token = jsonParser.nextToken();
+                        }
+                        requestParams.put(CalendarRequestConstants.TAGS, tags);
+                    } else {
+                        LOG.warn("Tags field came in without an array of tags in it - not processed");
+                        // do nothing, just log the error
+                    }
                 } else if (field.equals("jcr:createdBy")) {
                     final String value = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
                     up = new AuthIDProperties(value);
