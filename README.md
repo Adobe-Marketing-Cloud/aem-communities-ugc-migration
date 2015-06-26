@@ -9,6 +9,10 @@ This product contains 4 distinct pieces:
 - communities-ugc-migration-pkg: This package provides a graphical user interface for importing UGC into 6.1. It must be installed in /crx/packMgr. The UI shows up in the admin section at "libs/social/console/content/importUpload.html".
 
 # Exporting UGC using the legacy export servlet
-- Build the package using maven. 
-- Install the resulting .jar file in /system/console/bundles of the machine you want to export from.
-- Go to /crx/de and expand /content/usergenerated to find the root node for the content you wish to export. Copy the 
+1. Build the package using maven. 
+2. Install the resulting .jar file in /system/console/bundles of the machine you want to export from.
+3. Go to /crx/de and expand /content/usergenerated to find the root node for the content you wish to export. Copy the path to the root of the components you wish to export.
+4. In your browser, go to /services/social/ugc/export?path=[path you copied in crx/de]. This will trigger a file download of a zip archive containing all the UGC at or below the root node path you provided.
+
+# Importing UGC using the import servlet
+
