@@ -220,7 +220,12 @@ public class MessagesImportServlet extends SlingAllMethodsServlet {
                 final Random range = new Random();
                 final String key = String.valueOf(range.nextInt(Integer.MAX_VALUE))
                                  + String.valueOf(range.nextInt(Integer.MAX_VALUE));
-                props.put("searchKey", key);
+                // we're going to temporarily overwrite the subject (to do a search) and need to track its initial value
+                String subject = "";
+                if (props.containsKey("subject")) {
+                    subject = (String) props.get("subject");
+                }
+                props.put("subject", key); //use subject as the search key
                 try {
                     short result = messagingService.create(request.getResourceResolver(), request.getResource(), sender,
                             props, attachments, clientUtilsFactory.getClientUtilities(xss, request, socialUtils));
@@ -234,8 +239,8 @@ public class MessagesImportServlet extends SlingAllMethodsServlet {
                 // now search for the messages we just sent and update them appropriately by filling in their "read",
                 // "deleted", and "added" properties, and stripping their "searchKey" property
                 final MessageFilter filter = new MessageFilter();
-                filter.setContentType("social:asiResource");
-                filter.setVariableValue("searchKey", key);
+//                filter.setContentType("social:asiResource");
+                filter.setVariableValue("subject", key);
                 Iterable<Message> messages = null;
                 try {
                     messages = messageSearch.search(request.getResourceResolver(), filter, 0, recipientModifiers.size() + 1);
@@ -247,7 +252,7 @@ public class MessagesImportServlet extends SlingAllMethodsServlet {
                     final Resource messageResource = message.adaptTo(Resource.class);
                     ModifiableValueMap mvm = messageResource.adaptTo(ModifiableValueMap.class);
                     mvm.put("added", props.get("added"));
-                    mvm.remove("searchKey");
+                    mvm.put("jcr:title", subject); // restore the correct value for subject
                     for (final String recipientId : recipientModifiers.keySet()) {
                         if (messageResource.getPath().contains(recipientId)) {
                             final Map<String, Boolean> modifiers = recipientModifiers.get(recipientId);
