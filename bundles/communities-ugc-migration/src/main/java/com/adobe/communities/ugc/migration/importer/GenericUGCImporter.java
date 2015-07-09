@@ -50,12 +50,17 @@ import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import org.apache.sling.commons.json.JSONException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Component(label = "UGC Importer for All UGC Data",
         description = "Moves ugc data within json files into the active SocialResourceProvider", specVersion = "1.1")
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/ugc/import")})
 public class GenericUGCImporter extends SlingAllMethodsServlet {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ScoresImportServlet.class);
 
     @Reference
     private ForumOperations forumOperations;
@@ -112,24 +117,27 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                     throw new ServletException("Could not open zip archive");
                 }
 
-                final RequestParameter[] paths = request.getRequestParameters("path");
-                int counter = 0;
-                ZipEntry zipEntry = zipInputStream.getNextEntry();
-                while (zipEntry != null && paths.length > counter) {
-                    final String path = paths[counter].getString();
-                    final Resource resource = resolver.getResource(path);
-                    if (resource == null) {
-                        throw new ServletException("Could not find a valid resource for import");
-                    }
+                try {
+                    final RequestParameter[] paths = request.getRequestParameters("path");
+                    int counter = 0;
+                    ZipEntry zipEntry = zipInputStream.getNextEntry();
+                    while (zipEntry != null && paths.length > counter) {
+                        final String path = paths[counter].getString();
+                        final Resource resource = resolver.getResource(path);
+                        if (resource == null) {
+                            throw new ServletException("Could not find a valid resource for import");
+                        }
 
-                    final JsonParser jsonParser = new JsonFactory().createParser(zipInputStream);
-                    jsonParser.nextToken(); // get the first token
-                    importFile(jsonParser, resource);
-                    zipInputStream.closeEntry();
-                    zipEntry = zipInputStream.getNextEntry();
-                    counter++;
+                        final JsonParser jsonParser = new JsonFactory().createParser(zipInputStream);
+                        jsonParser.nextToken(); // get the first token
+                        importFile(jsonParser, resource);
+                        zipInputStream.closeEntry();
+                        zipEntry = zipInputStream.getNextEntry();
+                        counter++;
+                    }
+                } finally {
+                    zipInputStream.close();
                 }
-                zipInputStream.close();
             } else {
                 throw new ServletException("Unrecognized file input type");
             }
@@ -224,30 +232,31 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                                 importHelper.importQnaContent(jsonParser, resource, resolver);
                             } else if (contentType.equals(ContentTypeDefinitions.LABEL_FORUM)) {
                                 importHelper.importForumContent(jsonParser, resource, resolver);
+                            } else if (contentType.equals(ContentTypeDefinitions.LABEL_JOURNAL)) {
+                                importHelper.importJournalContent(jsonParser, resource, resolver);
                             } else if (contentType.equals(ContentTypeDefinitions.LABEL_COMMENTS)) {
                                 importHelper.importCommentsContent(jsonParser, resource, resolver);
                             } else {
+                                LOG.info("Unsupported content type: {}", contentType);
                                 jsonParser.skipChildren();
                             }
                             jsonParser.nextToken();
-                        } catch (Exception e) {
+                        } catch (final IOException e) {
                             throw new ServletException(e);
                         }
                         jsonParser.nextToken(); // skip over END_OBJECT
                     } else {
                         try {
-                            if (contentType.equals(ContentTypeDefinitions.LABEL_JOURNAL)) {
-                                importHelper.importJournalContent(jsonParser, resource, resolver);
-                            } else if (contentType.equals(ContentTypeDefinitions.LABEL_CALENDAR)) {
-                                jsonParser.nextToken(); // we skip START_ARRAY here
-                                importHelper.importCalendarContent(jsonParser, resource, resolver);
+                            if (contentType.equals(ContentTypeDefinitions.LABEL_CALENDAR)) {
+                                importHelper.importCalendarContent(jsonParser, resource);
                             } else if (contentType.equals(ContentTypeDefinitions.LABEL_TALLY)) {
-                                importHelper.importTallyContent(jsonParser, resource, resolver);
+                                importHelper.importTallyContent(jsonParser, resource);
                             } else {
+                                LOG.info("Unsupported content type: {}", contentType);
                                 jsonParser.skipChildren();
                             }
                             jsonParser.nextToken();
-                        } catch (Exception e) {
+                        } catch (final IOException e) {
                             throw new ServletException(e);
                         }
                         jsonParser.nextToken(); // skip over END_ARRAY

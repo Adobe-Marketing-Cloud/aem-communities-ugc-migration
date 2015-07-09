@@ -124,17 +124,16 @@ public class MessagesExportServlet extends SlingSafeMethodsServlet {
                 inStream = new FileInputStream(outFile);
                 // copy from file to output
                 IOUtils.copy(inStream, outStream);
-                IOUtils.closeQuietly(inStream);
-                IOUtils.closeQuietly(outStream);
             } catch (final IOException e) {
+                throw new ServletException(e);
+            } catch (Exception e) {
+                throw new ServletException(e);
+            } finally {
                 IOUtils.closeQuietly(zip);
                 IOUtils.closeQuietly(bos);
                 IOUtils.closeQuietly(fos);
                 IOUtils.closeQuietly(inStream);
                 IOUtils.closeQuietly(outStream);
-                throw new ServletException(e);
-            } catch (Exception e) {
-                throw new ServletException(e);
             }
         } finally {
             if (outFile != null) {

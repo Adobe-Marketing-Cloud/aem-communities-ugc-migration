@@ -213,8 +213,7 @@ public class UGCImportHelper {
     }
 
     public static void extractTally(final Resource post, final JsonParser jsonParser,
-        final ModifyingResourceProvider srp, final TallyOperationsService tallyOperationsService) throws IOException,
-        OperationException {
+        final ModifyingResourceProvider srp, final TallyOperationsService tallyOperationsService) throws IOException {
         jsonParser.nextToken(); // should be start object, but would be end array if no objects were present
         while (!jsonParser.getCurrentToken().equals(JsonToken.END_ARRAY)) {
             Long timestamp = null;
@@ -251,7 +250,7 @@ public class UGCImportHelper {
 
     private static void createTally(final ModifyingResourceProvider srp, final Resource post, final String tallyType,
         final String userIdentifier, final Long timestamp, final String response,
-        final TallyOperationsService tallyOperationsService) throws PersistenceException, OperationException {
+        final TallyOperationsService tallyOperationsService) throws PersistenceException {
 
         final ResourceResolver resolver = post.getResourceResolver();
         final Map<String, Object> properties = new HashMap<String, Object>();
@@ -366,11 +365,16 @@ public class UGCImportHelper {
         }
     }
 
-    public void importCalendarContent(final JsonParser jsonParser, final Resource resource,
-        final ResourceResolver resolver) throws JSONException, IOException {
+    public void importCalendarContent(final JsonParser jsonParser, final Resource resource) throws IOException {
+        if (jsonParser.getCurrentToken().equals(JsonToken.START_ARRAY)) {
+            jsonParser.nextToken(); // skip START_ARRAY here
+        } else {
+            throw new IOException("Improperly formed JSON - expected an START_ARRAY token, but got "
+                    + jsonParser.getCurrentToken().toString());
+        }
         if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
             while (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
-                extractEvent(jsonParser, resource, resolver);
+                extractEvent(jsonParser, resource);
                 jsonParser.nextToken(); // get the next token - either a start object token or an end array token
             }
         } else {
@@ -379,8 +383,7 @@ public class UGCImportHelper {
         }
     }
 
-    public void importTallyContent(final JsonParser jsonParser, final Resource resource,
-        final ResourceResolver resolver) throws OperationException, IOException {
+    public void importTallyContent(final JsonParser jsonParser, final Resource resource) throws IOException {
 
         SocialResourceConfiguration config = socialUtils.getStorageConfig(resource);
         final String rootPath = config.getAsiPath();
@@ -483,11 +486,7 @@ public class UGCImportHelper {
                             throw new IOException("Expected an object for the subnodes. Instead: " + field);
                         }
                     } else if (label.equals(ContentTypeDefinitions.LABEL_TALLY)) {
-                        try {
-                            UGCImportHelper.extractTally(post, jsonParser, resProvider, tallyOperationsService);
-                        } catch (OperationException e) {
-                            throw new IOException("Could not create tally", e);
-                        }
+                        UGCImportHelper.extractTally(post, jsonParser, resProvider, tallyOperationsService);
                     } else if (label.equals(ContentTypeDefinitions.LABEL_TRANSLATION)) {
                         importTranslation(jsonParser, post);
                         resProvider.commit(post.getResourceResolver());
@@ -580,10 +579,9 @@ public class UGCImportHelper {
         return true;
     }
 
-    protected void extractEvent(final JsonParser jsonParser, final Resource resource, final ResourceResolver resolver)
-        throws JSONException {
-// calendarOperations.createEvent(final Resource target, UserProperties up, final Map<String, Object> requestParams)
-        UserProperties up = null; // resolver.adaptTo(UserProperties.class);
+    protected void extractEvent(final JsonParser jsonParser, final Resource resource) throws IOException {
+
+        UserProperties up = null;
         final JSONObject requestParams = new JSONObject();
         try {
             jsonParser.nextToken();
@@ -634,15 +632,15 @@ public class UGCImportHelper {
                 }
                 token = jsonParser.nextToken();
             }
-        } catch (IOException e) {
-            //
+        } catch (final JSONException e) {
+            throw new IOException("Unable to build a JSON object with the inputs provided", e);
         }
         try {
             Map<String, Object> eventParams = new HashMap<String, Object>();
             eventParams.put("event", requestParams.toString());
             calendarOperations.createEvent(resource, up, eventParams);
-        } catch (OperationException e) {
-            e.printStackTrace();
+        } catch (final OperationException e) {
+            throw new IOException("Caught an OperationException while trying to create a new calendar event", e);
         }
     }
 
@@ -786,7 +784,7 @@ public class UGCImportHelper {
         } catch (final LoginException e) {
             throw new ServletException("Could not obtain a resolver with service user: " + SERVICE_MIGRATION, e);
         }
-        // determine whether the current session belongs to the group communities-user-admin
+        // determine whether the current session belongs to the group administrators
         final UserManager um = serviceUserResolver.adaptTo(UserManager.class);
         try {
             final Authorizable adminGroup = um.getAuthorizable("administrators");

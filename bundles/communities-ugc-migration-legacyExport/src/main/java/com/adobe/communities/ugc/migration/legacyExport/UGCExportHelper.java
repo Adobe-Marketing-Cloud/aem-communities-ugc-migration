@@ -79,13 +79,14 @@ public class UGCExportHelper {
         Resource contentNode = node.getChild("jcr:content");
         if (contentNode == null) {
             writer.key(ContentTypeDefinitions.LABEL_ERROR);
-            writer.value("provided resource was not an attachment - no content node");
+            writer.value("provided resource was not an attachment - no content node beneath " + node.getPath());
             return;
         }
         ValueMap content = contentNode.adaptTo(ValueMap.class);
         if (!content.containsKey("jcr:mimeType") || !content.containsKey("jcr:data")) {
             writer.key(ContentTypeDefinitions.LABEL_ERROR);
-            writer.value("provided resource was not an attachment - content node contained no attachment data");
+            writer.value("provided resource was not an attachment - content node contained no attachment data under "
+            + node.getPath());
             return;
         }
         writer.key("filename");
@@ -114,11 +115,12 @@ public class UGCExportHelper {
             ioWriter.write("\"");
         } catch (IOException e) {
             writer.key(ContentTypeDefinitions.LABEL_ERROR);
-            writer.value("IOException while getting attachment: " + e.getMessage());
+            writer.value("IOException while getting attachment at " + node.getPath() + ": " + e.getMessage());
         }
     }
 
-    protected static Map<String, Map<Long, ResponseValue>> getTallyResponses(Resource tallyResource) {
+    protected static Map<String, Map<Long, ResponseValue>> getTallyResponses(Resource tallyResource)
+            throws JSONException{
         Map<String, Map<Long, ResponseValue>> returnValue = new HashMap<String, Map<Long, ResponseValue>>();
         final ResourceResolver resolver = tallyResource.getResourceResolver();
         final String tallyPath = tallyResource.getPath();
@@ -130,6 +132,9 @@ public class UGCExportHelper {
             return null;
         }
         NestedBucketStorageSystem bucketSystem = getBucketSystem(responsesNode);
+        if (null == bucketSystem) {
+            return null;
+        }
 
         final Iterator<Resource> buckets = bucketSystem.listBuckets();
         while (buckets.hasNext()) {
@@ -155,7 +160,8 @@ public class UGCExportHelper {
                     returnValue.put(userNode.getName(), userReturnValue);
                 }
             } catch (final RepositoryException e) {
-// log.error("Error trying to read user responses from bucket in ", bucketResource.getPath(), e);
+                throw new JSONException("Error trying to read user responses from bucket in "
+                        + bucketResource.getPath(), e);
             }
         }
         return returnValue;
@@ -168,12 +174,11 @@ public class UGCExportHelper {
      * @return NestedBucketStorageSystem
      */
     protected static NestedBucketStorageSystem getBucketSystem(final Resource resource) {
-        NestedBucketStorageSystem bucketSystem;
-        try {
-            bucketSystem = resource.adaptTo(NestedBucketStorageSystem.class);
-        } catch (final NullPointerException e) {
+        if (null == resource) {
             return null;
         }
+        NestedBucketStorageSystem bucketSystem;
+        bucketSystem = resource.adaptTo(NestedBucketStorageSystem.class);
         if (bucketSystem != null) {
             bucketSystem.setBucketPostfix(NestedBucketStorageSystem.DEFAULT_BUCKET_POSTFIX);
         }
@@ -304,8 +309,8 @@ public class UGCExportHelper {
                 writer.key(prop.getKey());
                 try {
                     writer.value(URLEncoder.encode(prop.getValue().toString(), "UTF-8"));
-                } catch (UnsupportedEncodingException e) {
-                    throw new JSONException("Unsupported encoding - UTF-8", e);
+                } catch (final UnsupportedEncodingException e) {
+                    throw new JSONException("Unsupported encoding (UTF-8) for resource at " + post.getPath(), e);
                 }
             }
         }
@@ -421,8 +426,8 @@ public class UGCExportHelper {
                 writer.key(prop.getKey());
                 try {
                     writer.value(URLEncoder.encode(prop.getValue().toString(), "UTF-8"));
-                } catch (UnsupportedEncodingException e) {
-                    throw new JSONException("Unsupported encoding - UTF-8", e);
+                } catch (final UnsupportedEncodingException e) {
+                    throw new JSONException("Unsupported encoding (UTF-8) for resource at " + post.getPath(), e);
                 }
             }
         }
@@ -513,8 +518,8 @@ public class UGCExportHelper {
                 entryObject.key(prop.getKey());
                 try {
                     entryObject.value(URLEncoder.encode(prop.getValue().toString(), "UTF-8"));
-                } catch (UnsupportedEncodingException e) {
-                    throw new JSONException("Unsupported encoding - UTF-8", e);
+                } catch (final UnsupportedEncodingException e) {
+                    throw new JSONException("Unsupported encoding (UTF-8) for resource at " + thisResource.getPath(), e);
                 }
             }
         }
@@ -618,7 +623,7 @@ public class UGCExportHelper {
                 for (String v : (String[]) value) {
                     try {
                         list.put(URLEncoder.encode(v, "UTF-8"));
-                    } catch (UnsupportedEncodingException e) {
+                    } catch (final UnsupportedEncodingException e) {
                         throw new JSONException("String value cannot be encoded as UTF-8 for JSON transmission", e);
                     }
                 }
@@ -658,7 +663,7 @@ public class UGCExportHelper {
                 object.key(key);
                 try {
                     object.value(URLEncoder.encode(value.toString(), "UTF-8"));
-                } catch (UnsupportedEncodingException e) {
+                } catch (final UnsupportedEncodingException e) {
                     throw new JSONException("String value cannot be encoded as UTF-8 for JSON transmission", e);
                 }
             }

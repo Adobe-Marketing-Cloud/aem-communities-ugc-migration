@@ -21,6 +21,7 @@ import com.adobe.granite.socialgraph.Direction;
 import com.adobe.granite.socialgraph.GraphNode;
 import com.adobe.granite.socialgraph.Relationship;
 import com.adobe.granite.socialgraph.SocialGraph;
+import org.apache.commons.lang.StringUtils;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -29,6 +30,7 @@ import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.Resource;
+import org.apache.sling.api.resource.ValueMap;
 import org.apache.sling.api.servlets.SlingSafeMethodsServlet;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.io.JSONWriter;
@@ -53,7 +55,15 @@ public class SocialGraphExportServlet extends SlingSafeMethodsServlet {
         final JSONWriter writer = new JSONWriter(response.getWriter());
         writer.setTidy(true);
         final SocialGraph graph = request.getResourceResolver().adaptTo(SocialGraph.class);
-        final Resource userRoot = request.getResourceResolver().getResource("/home/users");
+        final String path = StringUtils.stripEnd(request.getRequestParameter("path").getString(), "/");
+        final Resource userRoot = request.getResourceResolver().getResource(path);
+        if (null == userRoot) {
+            throw new ServletException("Cannot locate a valid resource at " + path);
+        }
+        final ValueMap vm = userRoot.adaptTo(ValueMap.class);
+        if (!vm.get("jcr:primaryType").equals("rep:AuthorizableFolder")) {
+            throw new ServletException("Cannot locate a valid resource at " + path);
+        }
         //iterate over child resources to get user nodes
         try {
             writer.object();

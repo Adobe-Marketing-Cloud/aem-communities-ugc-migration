@@ -16,14 +16,14 @@
  * from Adobe Systems Incorporated.
  */
 
-(function(window, Granite, $, CUI, hbs) {
+(function(window, Granite, $, CUI) {
     "use strict";
     var initialConfig = null;
     var DEFAULT_MIGRATION_REPOSITORY_PATH = Granite.HTTP.getContextPath() + "/etc/migration/uploadFile/";
     var UPLOAD_AND_IMPORT_SERVLET = Granite.HTTP.getContextPath() + "/services/social/ugc/upload";
 
     $(function() {
-        var select = new CUI.Select({ element: 'span.file-selection-box' });
+        var select = new CUI.Select({ element: 'span.scf-js-file-selection-box' });
         $('section.wait-box').hide();
         //populate the file-selection drop-down list with all currently stored files
         $.get( UPLOAD_AND_IMPORT_SERVLET, null,
@@ -32,14 +32,16 @@
                     $.each(dataRows, function() {
                         displayImportForm(this.files, this.folderName, this.filename, this.uploadDate, select);
                     });
-                    $('form.file-selection-form').show();
+                    $('form.scf-js-file-selection-form').show();
                 }
             } ,
-            "json" );
+            "json" ).fail(function() {
+                showAlert("error", "See server logs. Page could not be loaded");
+            });
 
         // Hook the submit buttons
         // First button uploads a new zip archive containing migration data
-        $("form.file-upload-form button.coral-Button--primary").click(function(event) {
+        $("form.scf-js-file-upload-form button.coral-Button--primary").click(function(event) {
             event.preventDefault();
             var $target = $(event.currentTarget);
             var $form = $target.closest("form");
@@ -69,7 +71,7 @@
                         // display import view
                         data = JSON.parse(data);
                         displayImportForm(data['files'], data['folderName'], data['filename'], data['uploadDate'], select);
-                        $('form.file-selection-form').show();
+                        $('form.scf-js-file-selection-form').show();
                     },
                     error:function(jqXHR) {
                         showAlert("error", "Your migration data has not saved: " + jqXHR.statusCode() + " : " +
@@ -85,7 +87,7 @@
 
         // second button imports ugc extracted from of the files extracted from a zip archive and stores it in a
         // specified ugc node
-        $("form.file-selection-form button.coral-Button--primary").click(function(event) {
+        $("form.scf-js-file-selection-form button.coral-Button--primary").click(function(event) {
             event.preventDefault();
             var $target = $(event.currentTarget);
             var $form = $target.closest("form");
@@ -94,8 +96,9 @@
             var filePath = select.getValue();
             if (path && filePath) {
                 $.ajax({
-                  url: UPLOAD_AND_IMPORT_SERVLET + "?filePath=" + DEFAULT_MIGRATION_REPOSITORY_PATH + filePath
-                    + "&path=" + path,
+                  url: UPLOAD_AND_IMPORT_SERVLET + "?filePath=" +
+                    encodeURIComponent(DEFAULT_MIGRATION_REPOSITORY_PATH + filePath)
+                    + "&path=" + encodeURIComponent(path),
                   type: 'PUT',
                   data: filePath,
                   beforeSend:function() {
@@ -108,7 +111,7 @@
                     $('section.wait-box').hide().unbind('click');
                   },
                   success: function() {
-                    var element = $('span.file-selection-box');
+                    var element = $('span.scf-js-file-selection-box');
                     $('span.coral-Select-button-text', element).empty().html('');
                     $('option[value="'+this.data+'"]', element).remove();
                     $('li[data-value="'+this.data+'"]', element).remove();
@@ -128,7 +131,7 @@
         });
 
         // third button will delete a specified file from the store of files held in the default migration repository
-        $("form.file-selection-form button.delete-button").click(function(event) {
+        $("form.scf-js-file-selection-form button.delete-button").click(function(event) {
             event.preventDefault();
             var filePath = select.getValue();
             if (filePath) {
@@ -137,8 +140,8 @@
                 yesButton.unbind("click");
                 yesButton.bind("click", {filePath:filePath}, function(event) {
                     $.ajax({
-                      url: UPLOAD_AND_IMPORT_SERVLET + "?filePath=" + DEFAULT_MIGRATION_REPOSITORY_PATH
-                            + event.data.filePath,
+                      url:  UPLOAD_AND_IMPORT_SERVLET + "?filePath=" +
+                            encodeURIComponent(DEFAULT_MIGRATION_REPOSITORY_PATH + event.data.filePath),
                       type: 'DELETE',
                       data: event.data.filePath,
                       beforeSend:function() {
@@ -151,7 +154,7 @@
                         $('section.wait-box').hide().unbind('click');
                       },
                       success: function() {
-                        var element = $('span.file-selection-box');
+                        var element = $('span.scf-js-file-selection-box');
                         $('span.coral-Select-button-text', element).empty().html('');
                         $('option[value="'+this.data+'"]', element).remove();
                         $('li[data-value="'+this.data+'"]', element).remove();

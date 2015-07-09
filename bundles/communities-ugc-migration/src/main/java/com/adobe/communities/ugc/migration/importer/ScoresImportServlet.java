@@ -118,8 +118,8 @@ public class ScoresImportServlet extends SlingAllMethodsServlet {
         final Iterable<Resource> scoreNodes = rootNode.getChildren();
         for (final Resource scoreNode : scoreNodes) {
             ValueMap vm = scoreNode.adaptTo(ValueMap.class);
-            if (vm.get("jcr:primaryType").equals("cq:Page")) {
-                final Resource content = scoreNode.getChild("jcr:content");
+            final Resource content = scoreNode.getChild("jcr:content");
+            if (content.isResourceType("social/scoring/components/scoringpage")) {
                 final ValueMap valueMap = content.adaptTo(ValueMap.class);
                 if (valueMap.containsKey("sname")) {
                     final String[] scoreNames = (String[]) valueMap.get("sname");
@@ -170,10 +170,10 @@ public class ScoresImportServlet extends SlingAllMethodsServlet {
             scoreOperation.setScoreValue(entry.getValue());
             scoreOperations.add(scoreOperation);
         }
-        addPoints(authId, scoreOperations, resolver, userManager);
+        setPoints(authId, scoreOperations, resolver, userManager);
     }
 
-    public void addPoints(final String userId, final List<ScoreOperation> scoreOperations,
+    public void setPoints(final String userId, final List<ScoreOperation> scoreOperations,
                                  final ResourceResolver resourceResolver, final UserPropertiesManager userManager)
             throws RepositoryException {
         UserProperties userProps = userManager.getUserProperties(userId, "profile");

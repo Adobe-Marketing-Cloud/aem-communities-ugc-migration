@@ -63,6 +63,8 @@ import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Component(label = "UGC Migration File Importer",
         description = "Accepts a zipped archive of migration data, unzips its contents and saves in jcr tree",
@@ -70,6 +72,8 @@ import com.fasterxml.jackson.core.JsonToken;
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/ugc/upload")})
 public class ImportFileUploadServlet extends SlingAllMethodsServlet {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ScoresImportServlet.class);
 
     public final static String UPLOAD_DIR = "/etc/migration/uploadFile";
 
@@ -173,7 +177,7 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
                 }
             }
             writer.endArray();
-        } catch (JSONException e) {
+        } catch (final JSONException e) {
             throw new ServletException("Unable to output JSON", e);
         }
 
@@ -339,8 +343,11 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
                 // save the new node(s)
                 resolver.commit();
                 zipEntry = zipInputStream.getNextEntry();
-            } catch (final Exception e) {
-                // convert any exceptions into ServletExceptions
+            } catch (final IOException e) {
+                // convert any IOExceptions into ServletExceptions
+                throw new ServletException(e.getMessage(), e);
+            } catch (final JSONException e) {
+                // convert any JSONExceptions into ServletExceptions
                 throw new ServletException(e.getMessage(), e);
             }
         }
@@ -379,18 +386,39 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
             throw new ServletException("Cannot delete resource outside of designated upload folder");
         }
         final Resource parent = fileResource.getParent();
-        try {
-            final ResourceResolver resolver = fileResource.getResourceResolver();
-            resolver.delete(fileResource);
-            resolver.commit();
-        } catch (final PersistenceException e) {
-            throw new ServletException("Failed to delete a file resource following migration", e);
-        }
+
         if (parent.getPath().equals(UPLOAD_DIR)) {
-            return; //we've deleted all the way up the tree, so now we stop, whether or not it contains children now
-        }
-        if (!parent.hasChildren()) {
-            deleteResource(parent);
+            // don't bother checking for siblings, we won't be going any higher to delete
+            try {
+                final ResourceResolver resolver = fileResource.getResourceResolver();
+                resolver.delete(fileResource);
+                resolver.commit();
+            } catch (final PersistenceException e) {
+                throw new ServletException("Failed to delete a file resource following migration", e);
+            }
+        } else {
+            // Check to see if the resource we want to delete has siblings. If it doesn't, go one level higher and check
+            // again. If it does have siblings, then just delete the current resource rather than the parent.
+            final Iterable<Resource> siblings = parent.getChildren();
+            int count = 0;
+            boolean deleteParent = true;
+            for (final Resource sibling : siblings) {
+                count++;
+                if (count > 1) {
+                    deleteParent = false; //there's at least one thing besides the resource we mean to delete
+                }
+            }
+            if (deleteParent) {
+                deleteResource(parent);
+            } else {
+                try {
+                    final ResourceResolver resolver = fileResource.getResourceResolver();
+                    resolver.delete(fileResource);
+                    resolver.commit();
+                } catch (final PersistenceException e) {
+                    throw new ServletException("Failed to delete a file resource following migration", e);
+                }
+            }
         }
     }
 
@@ -485,25 +513,26 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
                             } else if (contentType.equals(ContentTypeDefinitions.LABEL_JOURNAL)) {
                                 importHelper.importJournalContent(jsonParser, resource, resolver);
                             } else {
+                                LOG.info("Unsupported content type: {}", contentType);
                                 jsonParser.skipChildren();
                             }
                             jsonParser.nextToken();
-                        } catch (Exception e) {
+                        } catch (final IOException e) {
                             throw new ServletException(e);
                         }
                         jsonParser.nextToken(); // skip over END_OBJECT
                     } else {
                         try {
                             if (contentType.equals(ContentTypeDefinitions.LABEL_CALENDAR)) {
-                                jsonParser.nextToken(); // we skip START_ARRAY here
-                                importHelper.importCalendarContent(jsonParser, resource, resolver);
+                                importHelper.importCalendarContent(jsonParser, resource);
                             } else if (contentType.equals(ContentTypeDefinitions.LABEL_TALLY)) {
-                                importHelper.importTallyContent(jsonParser, resource, resolver);
+                                importHelper.importTallyContent(jsonParser, resource);
                             } else {
+                                LOG.info("Unsupported content type: {}", contentType);
                                 jsonParser.skipChildren();
                             }
                             jsonParser.nextToken();
-                        } catch (Exception e) {
+                        } catch (final IOException e) {
                             throw new ServletException(e);
                         }
                         jsonParser.nextToken(); // skip over END_ARRAY

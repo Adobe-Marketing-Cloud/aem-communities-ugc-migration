@@ -21,6 +21,7 @@ import com.adobe.cq.social.scoring.api.ScoringConstants;
 import com.adobe.granite.security.user.UserProperties;
 import com.adobe.granite.security.user.UserPropertiesManager;
 import com.adobe.granite.security.user.UserPropertiesService;
+import org.apache.commons.lang.StringUtils;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -62,7 +63,15 @@ public class ScoresExportServlet extends SlingAllMethodsServlet {
 
         final JSONWriter writer = new JSONWriter(response.getWriter());
         writer.setTidy(true);
-        final Resource userRoot = request.getResourceResolver().getResource("/home/users");
+        final String path = StringUtils.stripEnd(request.getRequestParameter("path").getString(), "/");
+        final Resource userRoot = request.getResourceResolver().getResource(path);
+        if (null == userRoot) {
+            throw new ServletException("Cannot locate a valid resource at " + path);
+        }
+        final ValueMap vm = userRoot.adaptTo(ValueMap.class);
+        if (!vm.get("jcr:primaryType").equals("rep:AuthorizableFolder")) {
+            throw new ServletException("Cannot locate a valid resource at " + path);
+        }
         //iterate over child resources to get user nodes
         try {
             writer.object();
@@ -105,10 +114,12 @@ public class ScoresExportServlet extends SlingAllMethodsServlet {
             ValueMap vm = scoreNode.adaptTo(ValueMap.class);
             if (vm.get("jcr:primaryType").equals("cq:Page")) {
                 final Resource content = scoreNode.getChild("jcr:content");
-                final ValueMap valueMap = content.adaptTo(ValueMap.class);
-                if (valueMap.containsKey("sname")) {
-                    final String[] scoreNames = (String[]) valueMap.get("sname");
-                    scoreTypes.add(scoreNames[0]);
+                if (content.isResourceType("social/scoring/components/scoringpage")) {
+                    final ValueMap valueMap = content.adaptTo(ValueMap.class);
+                    if (valueMap.containsKey("sname")) {
+                        final String[] scoreNames = (String[]) valueMap.get("sname");
+                        scoreTypes.add(scoreNames[0]);
+                    }
                 }
             }
         }
@@ -128,7 +139,9 @@ public class ScoresExportServlet extends SlingAllMethodsServlet {
             final ValueMap props = ResourceUtil.getValueMap(scoreResource);
             while (scoreTypes.hasNext()) {
                 final String scoreType = scoreTypes.next();
-                result.put(scoreType, props.get(scoreType, 0L));
+                if (props.containsKey(scoreType)) {
+                    result.put(scoreType, props.get(scoreType, 0L));
+                }
             }
         } catch (final RepositoryException e) {
             throw new ServletException("user [" + authId + "] doesn't exist: or unable to get score ", e);

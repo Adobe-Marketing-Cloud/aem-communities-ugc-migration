@@ -37,6 +37,7 @@ import java.util.zip.ZipOutputStream;
 import javax.servlet.ServletException;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -77,14 +78,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
         if (!request.getRequestParameterMap().containsKey("path")) {
             throw new ServletException("No path specified for export. Exiting.");
         }
-        String path = request.getRequestParameter("path").getString();
-        while (path.endsWith("/")) { //remove trailing "/"
-            path = path.substring(0, path.length()-1);
-        }
-        response.setContentType("application/octet-stream");
-        final String headerKey = "Content-Disposition";
-        final String headerValue = "attachment; filename=\"export.zip\"";
-        response.setHeader(headerKey, headerValue);
+        final String path = StringUtils.stripEnd(request.getRequestParameter("path").getString(), "/");
         final Resource resource = request.getResourceResolver().getResource(path);
         if (resource == null) {
             throw new ServletException("Could not find a valid resource for export");
@@ -97,6 +91,11 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
             if (!outFile.canWrite()) {
                 throw new ServletException("Cannot write to specified output file");
             }
+            response.setContentType("application/octet-stream");
+            final String headerKey = "Content-Disposition";
+            final String headerValue = "attachment; filename=\"export.zip\"";
+            response.setHeader(headerKey, headerValue);
+
             FileOutputStream fos = new FileOutputStream(outFile);
             BufferedOutputStream bos = new BufferedOutputStream(fos);
             zip = new ZipOutputStream(bos);
@@ -115,17 +114,16 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                 inStream = new FileInputStream(outFile);
                 // copy from file to output
                 IOUtils.copy(inStream, outStream);
-                IOUtils.closeQuietly(inStream);
-                IOUtils.closeQuietly(outStream);
             } catch (final IOException e) {
+                throw new ServletException(e);
+            } catch (final Exception e) {
+                throw new ServletException(e);
+            } finally {
                 IOUtils.closeQuietly(zip);
                 IOUtils.closeQuietly(bos);
                 IOUtils.closeQuietly(fos);
                 IOUtils.closeQuietly(inStream);
                 IOUtils.closeQuietly(outStream);
-                throw new ServletException(e);
-            } catch (Exception e) {
-                throw new ServletException(e);
             }
         } finally {
             if (outFile != null) {
