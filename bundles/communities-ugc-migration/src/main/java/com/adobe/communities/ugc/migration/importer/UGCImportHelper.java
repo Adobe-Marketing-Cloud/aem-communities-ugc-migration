@@ -640,7 +640,8 @@ public class UGCImportHelper {
             eventParams.put("event", requestParams.toString());
             calendarOperations.createEvent(resource, up, eventParams);
         } catch (final OperationException e) {
-            throw new IOException("Caught an OperationException while trying to create a new calendar event", e);
+            //probably caused by creating a folder that already exists. We ignore it, but still log the event.
+            LOG.info("There was an operation exception while creating an event");
         }
     }
 
