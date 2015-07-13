@@ -41,7 +41,7 @@ import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.servlet.ServletException;
 
-import com.adobe.cq.social.ugcbase.core.attachments.FileDataSource;
+import com.adobe.cq.social.commons.FileDataSource;
 import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.felix.scr.annotations.Reference;
@@ -261,29 +261,41 @@ public class UGCImportHelper {
         Resource tallyResource;
         Tally tally;
         if (tallyType.equals(TallyOperationsService.VOTING)) {
-            tallyResource = post.getChild("voting");
-            if (tallyResource == null) {
-                properties.put("sling:resourceType", VotingSocialComponent.VOTING_RESOURCE_TYPE);
-                tallyResource = srp.create(resolver, post.getPath() + "/voting", properties);
-                srp.commit(resolver);
-                properties.remove("sling:resourceType");
+            if (post.getPath().endsWith("/voting")) {
+                tallyResource = post;
+            } else {
+                tallyResource = post.getChild("voting");
+                if (tallyResource == null) {
+                    properties.put("sling:resourceType", VotingSocialComponent.VOTING_RESOURCE_TYPE);
+                    tallyResource = srp.create(resolver, post.getPath() + "/voting", properties);
+                    srp.commit(resolver);
+                    properties.remove("sling:resourceType");
+                }
             }
             tally = tallyResource.adaptTo(Voting.class);
             tally.setTallyResourceType(VotingSocialComponent.VOTING_RESOURCE_TYPE);
         } else if (tallyType.equals(TallyOperationsService.POLL)) {
-            tallyResource = post.getChild("poll");
-            if (tallyResource == null) {
-                tallyResource = srp.create(resolver, post.getPath() + "/poll", properties);
-                srp.commit(resolver);
+            if (post.getPath().endsWith("/poll")) {
+                tallyResource = post;
+            } else {
+                tallyResource = post.getChild("poll");
+                if (tallyResource == null) {
+                    tallyResource = srp.create(resolver, post.getPath() + "/poll", properties);
+                    srp.commit(resolver);
+                }
             }
             tally = tallyResource.adaptTo(Poll.class);
         } else if (tallyType.equals(TallyOperationsService.RATING)) {
-            tallyResource = post.getChild("rating");
-            if (tallyResource == null) {
-                properties.put("sling:resourceType", RatingSocialComponent.RATING_RESOURCE_TYPE);
-                tallyResource = srp.create(resolver, post.getPath() + "/rating", properties);
-                srp.commit(resolver);
-                properties.remove("sling:resourceType");
+            if (post.getPath().endsWith("/rating")) {
+                tallyResource = post;
+            } else {
+                tallyResource = post.getChild("rating");
+                if (tallyResource == null) {
+                    properties.put("sling:resourceType", RatingSocialComponent.RATING_RESOURCE_TYPE);
+                    tallyResource = srp.create(resolver, post.getPath() + "/rating", properties);
+                    srp.commit(resolver);
+                    properties.remove("sling:resourceType");
+                }
             }
             tally = tallyResource.adaptTo(Voting.class);
             tally.setTallyResourceType(RatingSocialComponent.RATING_RESOURCE_TYPE);
