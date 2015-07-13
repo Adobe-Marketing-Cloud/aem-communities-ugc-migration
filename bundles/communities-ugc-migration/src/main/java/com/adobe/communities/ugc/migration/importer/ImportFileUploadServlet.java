@@ -73,7 +73,7 @@ import org.slf4j.LoggerFactory;
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/ugc/upload")})
 public class ImportFileUploadServlet extends SlingAllMethodsServlet {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ScoresImportServlet.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ImportFileUploadServlet.class);
 
     public final static String UPLOAD_DIR = "/etc/migration/uploadFile";
 

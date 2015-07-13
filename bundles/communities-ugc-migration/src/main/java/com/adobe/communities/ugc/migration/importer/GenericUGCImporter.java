@@ -60,7 +60,7 @@ import org.slf4j.LoggerFactory;
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/ugc/import")})
 public class GenericUGCImporter extends SlingAllMethodsServlet {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ScoresImportServlet.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GenericUGCImporter.class);
 
     @Reference
     private ForumOperations forumOperations;
