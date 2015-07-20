@@ -38,13 +38,6 @@ import javax.annotation.Nonnull;
 import javax.jcr.RepositoryException;
 import javax.servlet.ServletException;
 
-import com.adobe.cq.social.messaging.api.Message;
-import com.adobe.cq.social.messaging.api.MessageFilter;
-import com.adobe.cq.social.messaging.api.MessagingService;
-import com.adobe.cq.social.scf.ClientUtilityFactory;
-import com.adobe.cq.social.scf.OperationException;
-import com.adobe.cq.social.ugcbase.core.attachments.FileDataSource;
-import com.adobe.cq.social.ugcbase.SocialUtils;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -54,21 +47,33 @@ import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.request.RequestParameter;
 import org.apache.sling.api.resource.ModifiableValueMap;
+import org.apache.sling.api.resource.PersistenceException;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
 import org.apache.sling.api.resource.ResourceResolverFactory;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.ServiceReference;
+import org.osgi.service.component.ComponentContext;
+import org.osgi.util.tracker.ServiceTracker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.adobe.granite.xss.XSSAPI;
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
+import com.adobe.cq.social.messaging.api.Message;
+import com.adobe.cq.social.messaging.api.MessageFilter;
+import com.adobe.cq.social.messaging.api.MessagingService;
 import com.adobe.cq.social.messaging.client.endpoints.MessagingOperationsService;
+import com.adobe.cq.social.scf.ClientUtilityFactory;
+import com.adobe.cq.social.scf.OperationException;
+import com.adobe.cq.social.ugc.api.ValueConstraint;
+import com.adobe.cq.social.ugcbase.SocialUtils;
+import com.adobe.cq.social.ugcbase.core.attachments.FileDataSource;
+import com.adobe.granite.security.user.UserPropertiesService;
+import com.adobe.granite.xss.XSSAPI;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import org.osgi.service.component.ComponentContext;
-import org.osgi.util.tracker.ServiceTracker;
-import org.osgi.framework.BundleContext;
-import org.osgi.framework.ServiceReference;
 
 @Component(label = "UGC Migration Messages Importer",
         description = "Accepts a zipped archive of message data, unzips its contents and saves mail messages",
@@ -76,6 +81,8 @@ import org.osgi.framework.ServiceReference;
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/messages/import")})
 public class MessagesImportServlet extends SlingAllMethodsServlet {
+
+    private static final Logger LOG = LoggerFactory.getLogger(MessagesImportServlet.class);
 
     private MessagingServiceTracker messagingServiceTracker;
 
@@ -91,6 +98,9 @@ public class MessagesImportServlet extends SlingAllMethodsServlet {
     private XSSAPI xss;
     @Reference
     private ClientUtilityFactory clientUtilsFactory;
+
+    @Reference
+    private UserPropertiesService userPropertiesService;
 
     @Reference
     MessagingService messageSearch;
@@ -130,12 +140,13 @@ public class MessagesImportServlet extends SlingAllMethodsServlet {
         if (fileRequestParameters != null && fileRequestParameters.length > 0
                 && !fileRequestParameters[0].isFormField()) {
 
+            final Map<String, Object> messageModifiers = new HashMap<String, Object>();
             if (fileRequestParameters[0].getFileName().endsWith(".json")) {
                 // if upload is a single json file...
                 final InputStream inputStream = fileRequestParameters[0].getInputStream();
                 final JsonParser jsonParser = new JsonFactory().createParser(inputStream);
                 jsonParser.nextToken(); // get the first token
-                importMessages(request, jsonParser);
+                importMessages(request, jsonParser, messageModifiers);
             } else if (fileRequestParameters[0].getFileName().endsWith(".zip")) {
                 ZipInputStream zipInputStream;
                 try {
@@ -147,7 +158,7 @@ public class MessagesImportServlet extends SlingAllMethodsServlet {
                 while (zipEntry != null) {
                     final JsonParser jsonParser = new JsonFactory().createParser(zipInputStream);
                     jsonParser.nextToken(); // get the first token
-                    importMessages(request, jsonParser);
+                    importMessages(request, jsonParser, messageModifiers);
                     zipInputStream.closeEntry();
                     zipEntry = zipInputStream.getNextEntry();
                 }
@@ -155,12 +166,21 @@ public class MessagesImportServlet extends SlingAllMethodsServlet {
             } else {
                 throw new ServletException("Unrecognized file input type");
             }
+            if (!messageModifiers.isEmpty()) {
+                try {
+                    Thread.sleep(3000); //wait 3 seconds to allow the messages to be indexed by solr for search
+                } catch (final InterruptedException e) {
+                    // do nothing.
+                }
+                updateMessageDetails(request, messageModifiers);
+            }
         } else {
             throw new ServletException("No file provided for UGC data");
         }
     }
 
-    private void importMessages(final SlingHttpServletRequest request, final JsonParser jsonParser) throws ServletException {
+    private void importMessages(final SlingHttpServletRequest request, final JsonParser jsonParser,
+                                final Map<String, Object> messageModifiers) throws ServletException {
 
         if (!jsonParser.getCurrentToken().equals(JsonToken.START_ARRAY)) {
             throw new ServletException("unexpected starting token "+ jsonParser.getCurrentToken().asString());
@@ -171,6 +191,7 @@ public class MessagesImportServlet extends SlingAllMethodsServlet {
             while (!jsonParser.getCurrentToken().equals(JsonToken.END_ARRAY)) {
                 final Map<String, Map<String, Boolean>> recipientModifiers =new HashMap<String, Map<String, Boolean>>();
                 final Map<String, Object> props = new HashMap<String, Object>();
+                final Map<String, Object> messageModifier = new HashMap<String, Object>();
                 List<FileDataSource> attachments = new ArrayList<FileDataSource>();
                 String sender = "";
                 jsonParser.nextToken(); //field name
@@ -182,7 +203,7 @@ public class MessagesImportServlet extends SlingAllMethodsServlet {
                     } else if (fieldName.equals("added")) {
                         final Calendar calendar = new GregorianCalendar();
                         calendar.setTimeInMillis(jsonParser.getLongValue());
-                        props.put("added", calendar);
+                        messageModifier.put("added", calendar);
                     } else if (fieldName.equals("recipients")) {
                         // build the string for the "to" property and also create the modifiers we'll need later
                         final StringBuilder recipientString = new StringBuilder();
@@ -191,7 +212,6 @@ public class MessagesImportServlet extends SlingAllMethodsServlet {
                             jsonParser.nextToken(); // should get first recipientId
                             while (!jsonParser.getCurrentToken().equals(JsonToken.END_OBJECT)) {
                                 final String recipientId = jsonParser.getCurrentName();
-                                recipientString.append(recipientId);
                                 jsonParser.nextToken(); //start object
                                 jsonParser.nextToken(); //first label
                                 final Map<String, Boolean> interactionModifiers = new HashMap<String, Boolean>();
@@ -202,13 +222,23 @@ public class MessagesImportServlet extends SlingAllMethodsServlet {
                                     interactionModifiers.put(label, labelValue);
                                     jsonParser.nextToken(); //next label or end object
                                 }
-                                recipientModifiers.put(recipientId, interactionModifiers);
+                                try {
+                                    final String userPath = userPropertiesService.getAuthorizablePath(recipientId);
+                                    recipientModifiers.put(userPath, interactionModifiers);
+                                    recipientString.append(recipientId);
+                                } catch (final RepositoryException e) {
+                                    // log the fact that a recipient specified in the json file doesn't exist in this
+                                    // environment
+                                    throw new ServletException("A recipient specified in the migration file couldn't " +
+                                            "be found in this environment", e);
+                                }
                                 jsonParser.nextToken(); // next recipientId or end object
                                 if (jsonParser.getCurrentToken().equals(JsonToken.FIELD_NAME)) {
                                     recipientString.append(';');
                                 }
                             }
                             props.put("to", recipientString);
+                            messageModifier.put("recipientDetails", recipientModifiers);
                         }
                     } else if (fieldName.equals(ContentTypeDefinitions.LABEL_ATTACHMENTS)) {
                         UGCImportHelper.getAttachments(jsonParser, attachments);
@@ -221,11 +251,13 @@ public class MessagesImportServlet extends SlingAllMethodsServlet {
                 final String key = String.valueOf(range.nextInt(Integer.MAX_VALUE))
                                  + String.valueOf(range.nextInt(Integer.MAX_VALUE));
                 // we're going to temporarily overwrite the subject (to do a search) and need to track its initial value
-                String subject = "";
                 if (props.containsKey("subject")) {
-                    subject = (String) props.get("subject");
+                    messageModifier.put("subject", props.get("subject"));
+                } else {
+                    messageModifier.put("subject", "");
                 }
                 props.put("subject", key); //use subject as the search key
+                messageModifiers.put(key, messageModifier);
                 try {
                     short result = messagingService.create(request.getResourceResolver(), request.getResource(), sender,
                             props, attachments, clientUtilsFactory.getClientUtilities(xss, request, socialUtils));
@@ -236,38 +268,65 @@ public class MessagesImportServlet extends SlingAllMethodsServlet {
                 } catch (final OperationException e) {
                     throw new ServletException("Unable to create a message through the operation service", e);
                 }
-                // now search for the messages we just sent and update them appropriately by filling in their "read",
-                // "deleted", and "added" properties, and stripping their "searchKey" property
-                final MessageFilter filter = new MessageFilter();
-//                filter.setContentType("social:asiResource");
-                filter.setVariableValue("subject", key);
-                Iterable<Message> messages = null;
-                try {
-                    messages = messageSearch.search(request.getResourceResolver(), filter, 0, recipientModifiers.size() + 1);
-
-                } catch (final RepositoryException e) {
-                    throw new ServletException("Sent messages could not be found", e);
-                }
-                for (final Message message : messages) {
-                    final Resource messageResource = message.adaptTo(Resource.class);
-                    ModifiableValueMap mvm = messageResource.adaptTo(ModifiableValueMap.class);
-                    mvm.put("added", props.get("added"));
-                    mvm.put("jcr:title", subject); // restore the correct value for subject
-                    for (final String recipientId : recipientModifiers.keySet()) {
-                        if (messageResource.getPath().contains(recipientId)) {
-                            final Map<String, Boolean> modifiers = recipientModifiers.get(recipientId);
-                            mvm.put("read_b", modifiers.get("read"));
-                            mvm.put("deleted_b", modifiers.get("deleted"));
-                            break;
-                        }
-                    }
-                }
-                request.getResourceResolver().commit(); //save changes
                 jsonParser.nextToken(); //either END_ARRAY or START_OBJECT
             }
 
         } catch (final IOException e) {
             throw new ServletException("Encountered exception while parsing json content", e);
+        }
+    }
+
+    private void updateMessageDetails(final SlingHttpServletRequest request, final Map<String, Object> messageModifiers)
+        throws ServletException {
+
+        int count = 0;
+        for (final String key : messageModifiers.keySet()) {
+            // now search for the messages we just sent and update them appropriately by filling in their "read",
+            // "deleted", and "added" properties, and stripping their "searchKey" property
+            final MessageFilter filter = new MessageFilter();
+            filter.addConstraint(new ValueConstraint<String>("jcr:title", key));
+            final Map<String, Object> messageModifier = (Map<String, Object>) messageModifiers.get(key);
+            final Map<String, Map<String, Boolean>> recipientModifiers = (Map<String, Map<String, Boolean>>) messageModifier.get("recipientDetails");
+            Iterable<Message> messages = null;
+            try {
+                messages = messageSearch.search(request.getResourceResolver(), filter, 0, recipientModifiers.size() + 1);
+            } catch (final RepositoryException e) {
+                throw new ServletException("Sent messages could not be found", e);
+            }
+            if (!messages.iterator().hasNext()) {
+                throw new ServletException("Sent messages could not be found");
+            }
+            for (final Message message : messages) {
+                final Resource messageResource = message.adaptTo(Resource.class);
+                ModifiableValueMap mvm = messageResource.adaptTo(ModifiableValueMap.class);
+                mvm.put("added", messageModifier.get("added"));
+                mvm.put("jcr:title", messageModifier.get("subject")); // restore the correct value for subject
+                LOG.debug("Identified {} with path {}", messageModifier.get("subject"), messageResource.getPath());
+                for (final String userPath : recipientModifiers.keySet()) {
+                    if (messageResource.getPath().contains(userPath)) {
+                        final Map<String, Boolean> modifiers = recipientModifiers.get(userPath);
+                        message.setRead(modifiers.get("read"));
+                        message.setDeleted(modifiers.get("deleted"));
+                        break;
+                    }
+                }
+                count++;
+                if (count >= 50) {
+                    // make sure we commit our update in batches no bigger than 50 to prevent sending POST's too large
+                    // for an AS endpoint to handle
+                    try {
+                        request.getResourceResolver().commit(); //save changes
+                    } catch (PersistenceException e) {
+                        throw new ServletException("Messages were sent but not adjusted", e);
+                    }
+                    count = 0;
+                }
+            }
+        }
+        try {
+            request.getResourceResolver().commit(); //save changes
+        } catch (PersistenceException e) {
+            throw new ServletException("Messages were sent but not adjusted", e);
         }
     }
     static final class MessagingServiceTracker extends ServiceTracker {
