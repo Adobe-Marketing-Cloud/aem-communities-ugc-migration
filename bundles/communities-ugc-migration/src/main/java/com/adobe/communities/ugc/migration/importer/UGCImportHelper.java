@@ -304,7 +304,7 @@ public class UGCImportHelper {
         }
         // Needed params:
         try {
-            properties.put("timestamp", Long.toString(calendar.getTimeInMillis()));
+            properties.put("timestamp", calendar);
             tallyOperationsService.setTallyResponse(tally.getTallyTarget(), userIdentifier,
                 resolver.adaptTo(Session.class), response, tallyType, properties);
         } catch (final OperationException e) {
