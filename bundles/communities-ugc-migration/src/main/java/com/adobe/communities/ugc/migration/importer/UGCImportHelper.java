@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.TimeZone;
 
 import javax.activation.DataSource;
@@ -258,16 +259,22 @@ public class UGCImportHelper {
         final Calendar calendar = new GregorianCalendar();
         calendar.setTimeInMillis(timestamp);
         properties.put("jcr:created", calendar.getTime());
-        Resource tallyResource;
+        Resource tallyResource = null;
         Tally tally;
         if (tallyType.equals(TallyOperationsService.VOTING)) {
-            if (post.getPath().endsWith("/voting")) {
+            if (post.getResourceType().equals(VotingSocialComponent.VOTING_RESOURCE_TYPE)) {
                 tallyResource = post;
             } else {
-                tallyResource = post.getChild("voting");
+                Iterable<Resource> postChildren = post.getChildren();
+                for (final Resource postChild : postChildren) {
+                    if (postChild.getResourceType().equals(VotingSocialComponent.VOTING_RESOURCE_TYPE)) {
+                        tallyResource = postChild;
+                        break;
+                    }
+                }
                 if (tallyResource == null) {
                     properties.put("sling:resourceType", VotingSocialComponent.VOTING_RESOURCE_TYPE);
-                    tallyResource = srp.create(resolver, post.getPath() + "/voting", properties);
+                    tallyResource = srp.create(resolver, post.getPath() + "/voting_" + randomHexString(), properties);
                     srp.commit(resolver);
                     properties.remove("sling:resourceType");
                 }
@@ -275,24 +282,23 @@ public class UGCImportHelper {
             tally = tallyResource.adaptTo(Voting.class);
             tally.setTallyResourceType(VotingSocialComponent.VOTING_RESOURCE_TYPE);
         } else if (tallyType.equals(TallyOperationsService.POLL)) {
-            if (post.getPath().endsWith("/poll")) {
-                tallyResource = post;
-            } else {
-                tallyResource = post.getChild("poll");
-                if (tallyResource == null) {
-                    tallyResource = srp.create(resolver, post.getPath() + "/poll", properties);
-                    srp.commit(resolver);
-                }
-            }
-            tally = tallyResource.adaptTo(Poll.class);
+            // don't throw an exception, since we know what it is, but log a warning since we no longer support polls
+            LOG.warn("Unsupported tally type 'poll' could not be imported");
+            return;
         } else if (tallyType.equals(TallyOperationsService.RATING)) {
-            if (post.getPath().endsWith("/rating")) {
+            if (post.getResourceType().equals(RatingSocialComponent.RATING_RESOURCE_TYPE)) {
                 tallyResource = post;
             } else {
-                tallyResource = post.getChild("rating");
+                Iterable<Resource> postChildren = post.getChildren();
+                for (final Resource postChild : postChildren) {
+                    if (postChild.getResourceType().equals(RatingSocialComponent.RATING_RESOURCE_TYPE)) {
+                        tallyResource = postChild;
+                        break;
+                    }
+                }
                 if (tallyResource == null) {
                     properties.put("sling:resourceType", RatingSocialComponent.RATING_RESOURCE_TYPE);
-                    tallyResource = srp.create(resolver, post.getPath() + "/rating", properties);
+                    tallyResource = srp.create(resolver, post.getPath() + "/rating_" + randomHexString(), properties);
                     srp.commit(resolver);
                     properties.remove("sling:resourceType");
                 }
@@ -809,6 +815,12 @@ public class UGCImportHelper {
         } catch (final RepositoryException e) {
             throw new ServletException("Cannot access repository", e);
         }
+    }
+
+    private static String randomHexString() {
+        Random rand = new Random();
+        int hexInt = rand.nextInt(0X10000);
+        return Integer.toHexString(hexInt).toLowerCase();
     }
 
     /**
