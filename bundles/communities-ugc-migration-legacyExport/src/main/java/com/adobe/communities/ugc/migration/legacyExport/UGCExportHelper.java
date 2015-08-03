@@ -340,29 +340,6 @@ public class UGCExportHelper {
         if (null != translationResource) {
             extractTranslation(writer, translationResource);
         }
-        final Iterable<Resource> childNodes = thisResource.getChildren();
-        if (childNodes != null) {
-            JSONWriter object = null;
-            for (final Resource subNode : childNodes) {
-                final String nodeName = subNode.getName();
-                if (nodeName.matches("^[0-9]+" + Post.POST_POSTFIX + "$")) {
-                    continue; // this is a folder of replies, which will be picked up lower down
-                }
-                if (nodeName.equals("attachments") || nodeName.equals("votes") || nodeName.equals("translation")) {
-                    continue; // already handled attachments and votes up above
-                }
-                if (null == object) {
-                    writer.key(ContentTypeDefinitions.LABEL_SUBNODES);
-                    object = writer.object();
-                }
-                object.key(nodeName);
-                UGCExportHelper.extractSubNode(object.object(), subNode);
-                object.endObject();
-            }
-            if (null != object) {
-                writer.endObject();
-            }
-        }
         final Iterator<Comment> posts = post.getComments();
         if (posts.hasNext()) {
             writer.key(ContentTypeDefinitions.LABEL_REPLIES);
@@ -456,24 +433,6 @@ public class UGCExportHelper {
         final Resource translationResource = thisResource.getChild("translation");
         if (null != translationResource) {
             extractTranslation(writer, translationResource);
-        }
-        final Iterable<Resource> childNodes = thisResource.getChildren();
-        if (childNodes != null) {
-            writer.key(ContentTypeDefinitions.LABEL_SUBNODES);
-            final JSONWriter object = writer.object();
-            for (final Resource subNode : childNodes) {
-                final String nodeName = subNode.getName();
-                if (nodeName.matches("^[0-9]+" + Post.POST_POSTFIX + "$")) {
-                    continue; // this is a folder of replies, which will be picked up lower down
-                }
-                if (nodeName.equals("attachments") || nodeName.equals("votes") || nodeName.equals("translation")) {
-                    continue; // already handled attachments, votes and translations up above
-                }
-                object.key(nodeName);
-                UGCExportHelper.extractSubNode(object.object(), subNode);
-                object.endObject();
-            }
-            writer.endObject();
         }
         final Iterator<Post> posts = post.getPosts();
         if (posts.hasNext()) {
@@ -637,11 +596,11 @@ public class UGCExportHelper {
                 object.key(ContentTypeDefinitions.LABEL_ENCODED_DATA_FIELDNAME);
                 object.value(key);
                 object.key(ContentTypeDefinitions.LABEL_ENCODED_DATA);
-                object.value(""); // if we error out on the first read attempt, we need a placeholder value still
                 try {
                     final InputStream data = (InputStream) value;
                     byte[] byteData = new byte[DATA_ENCODING_CHUNK_SIZE];
                     int read = 0;
+                    final StringBuilder stringBuilder = new StringBuilder();
                     while (read != -1) {
                         read = data.read(byteData);
                         if (read > 0 && read < DATA_ENCODING_CHUNK_SIZE) {
@@ -649,13 +608,15 @@ public class UGCExportHelper {
                             byte[] byteArray = new byte[read];
                             System.arraycopy(byteData, 0, byteArray, 0, read);
                             byte[] encodedBytes = Base64.encodeBase64(byteArray);
-                            object.value(new String(encodedBytes));
+                            stringBuilder.append(new String(encodedBytes));
                         } else if (read == DATA_ENCODING_CHUNK_SIZE) {
                             byte[] encodedBytes = Base64.encodeBase64(byteData);
-                            object.value(new String(encodedBytes));
+                            stringBuilder.append(new String(encodedBytes));
                         }
                     }
+                    object.value(stringBuilder.toString());
                 } catch (IOException e) {
+                    object.value(""); // if we error out on the first read attempt, we need a placeholder value still
                     object.key(ContentTypeDefinitions.LABEL_ERROR);
                     object.value("IOException while getting attachment: " + e.getMessage());
                 }
