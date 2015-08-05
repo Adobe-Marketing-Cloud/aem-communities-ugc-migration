@@ -67,9 +67,16 @@ curl -i -u"admin:admin" -X POST -F"file=@/Users/sample/Downloads/export/en/commu
 4. Example import command:
 curl -i -u"admin:admin" -X POST -F"file=@/Users/sample/Downloads/socialScores.json" http://localhost:4503/services/social/scores/import
 
-# Importing Messages data into 6.1
+# Importing Social Graph data into 6.1
 1. Build the package "communities-ugc-migration" using maven.
 2. Install the resulting .jar file in /system/console/bundles on a publish node of your AEM 6.1 instance where you wish to import.
 3. Use curl to upload the social graph file to the import servlet
 Example import command:
 curl -i -u"admin:admin" -X POST -F"file=@/Users/sample/Downloads/socialGraph.json" http://localhost:4503/services/social/graph/import
+
+# Importing Messages into 6.1
+1. Build the package "communities-ugc-migration" using maven.
+2. Install the resulting .jar file in /system/console/bundles on a publish node of your AEM 6.1 instance where you wish to import.
+3. Use curl to upload the messages archive file to the import servlet
+Example import command:
+curl -i -u"admin:admin" -X POST -F"file=@/Users/sample/Downloads/export.zip" http://localhost:4503/services/social/messages/import
