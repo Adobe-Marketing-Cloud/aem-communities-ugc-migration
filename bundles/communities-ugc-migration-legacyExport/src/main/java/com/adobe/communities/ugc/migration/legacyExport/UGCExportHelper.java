@@ -329,16 +329,17 @@ public class UGCExportHelper {
             }
             writer.endArray();
         }
-        final Resource voteResource = thisResource.getChild("votes");
-        if (voteResource != null) {
-            writer.key(ContentTypeDefinitions.LABEL_TALLY);
-            final JSONWriter voteObjects = writer.array();
-            UGCExportHelper.extractTally(voteObjects, voteResource, "Voting");
-            writer.endArray();
-        }
-        final Resource translationResource = thisResource.getChild("translation");
-        if (null != translationResource) {
-            extractTranslation(writer, translationResource);
+        final Iterable<Resource> children = thisResource.getChildren();
+        for (final Resource child : children) {
+            if (child.isResourceType("social/tally/components/hbs/voting")) {
+            // string above would be the constant 'VotingSocialComponent.VOTING_RESOURCE_TYPE' if available in 5.6.1
+                writer.key(ContentTypeDefinitions.LABEL_TALLY);
+                final JSONWriter voteObjects = writer.array();
+                UGCExportHelper.extractTally(voteObjects, child, "Voting");
+                writer.endArray();
+            } else if (child.getName().equals("translation")) {
+                extractTranslation(writer, child);
+            } 
         }
         final Iterator<Comment> posts = post.getComments();
         if (posts.hasNext()) {
@@ -423,16 +424,17 @@ public class UGCExportHelper {
             }
             writer.endArray();
         }
-        final Resource voteResource = thisResource.getChild("votes");
-        if (voteResource != null) {
-            writer.key(ContentTypeDefinitions.LABEL_TALLY);
-            final JSONWriter voteObjects = writer.array();
-            UGCExportHelper.extractTally(voteObjects, voteResource, "Voting");
-            writer.endArray();
-        }
-        final Resource translationResource = thisResource.getChild("translation");
-        if (null != translationResource) {
-            extractTranslation(writer, translationResource);
+        final Iterable<Resource> children = thisResource.getChildren();
+        for (final Resource child : children) {
+            if (child.isResourceType("social/tally/components/hbs/voting")) {
+                // string above would be the constant 'VotingSocialComponent.VOTING_RESOURCE_TYPE' if available in 5.6.1
+                writer.key(ContentTypeDefinitions.LABEL_TALLY);
+                final JSONWriter voteObjects = writer.array();
+                UGCExportHelper.extractTally(voteObjects, child, "Voting");
+                writer.endArray();
+            } else if (child.getName().equals("translation")) {
+                extractTranslation(writer, child);
+            }
         }
         final Iterator<Post> posts = post.getPosts();
         if (posts.hasNext()) {

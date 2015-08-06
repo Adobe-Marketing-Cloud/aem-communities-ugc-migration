@@ -49,7 +49,6 @@ import org.apache.felix.scr.annotations.Reference;
 import org.apache.jackrabbit.api.security.user.Authorizable;
 import org.apache.jackrabbit.api.security.user.Group;
 import org.apache.jackrabbit.api.security.user.UserManager;
-import org.apache.sling.api.resource.LoginException;
 import org.apache.sling.api.resource.ModifyingResourceProvider;
 import org.apache.sling.api.resource.PersistenceException;
 import org.apache.sling.api.resource.Resource;
@@ -82,8 +81,6 @@ import com.adobe.cq.social.ugcbase.core.SocialResourceUtils;
 import com.adobe.granite.security.user.UserProperties;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-
-import static org.apache.sling.api.resource.ResourceResolverFactory.SUBSERVICE;
 
 public class UGCImportHelper {
     private static final Logger LOG = LoggerFactory.getLogger(UGCImportHelper.class);
@@ -274,7 +271,7 @@ public class UGCImportHelper {
                 }
                 if (tallyResource == null) {
                     properties.put("sling:resourceType", VotingSocialComponent.VOTING_RESOURCE_TYPE);
-                    tallyResource = srp.create(resolver, post.getPath() + "/voting_" + randomHexString(), properties);
+                    tallyResource = srp.create(resolver, post.getPath() + "/voting", properties);
                     srp.commit(resolver);
                     properties.remove("sling:resourceType");
                 }
@@ -795,16 +792,8 @@ public class UGCImportHelper {
     public static void checkUserPrivileges(final ResourceResolver resolver, final ResourceResolverFactory rrf)
             throws ServletException {
 
-        ResourceResolver serviceUserResolver;
-
-        try {
-            serviceUserResolver = rrf.getServiceResourceResolver(Collections.<String, Object>singletonMap(SUBSERVICE,
-                    SERVICE_MIGRATION));
-        } catch (final LoginException e) {
-            throw new ServletException("Could not obtain a resolver with service user: " + SERVICE_MIGRATION, e);
-        }
         // determine whether the current session belongs to the group administrators
-        final UserManager um = serviceUserResolver.adaptTo(UserManager.class);
+        final UserManager um = resolver.adaptTo(UserManager.class);
         try {
             final Authorizable adminGroup = um.getAuthorizable("administrators");
             final Authorizable user = resolver.adaptTo(Authorizable.class);
