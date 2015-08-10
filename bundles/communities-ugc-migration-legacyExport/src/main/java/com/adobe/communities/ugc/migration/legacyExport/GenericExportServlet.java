@@ -340,6 +340,10 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                 writer.setTidy(true);
                 final Resource commentSystemResource = resource.getResourceResolver()
                         .getResource(commentSystemPath);
+                if (commentSystemResource == null) {
+                    logger.error("Could not find comment parent resource: " + commentSystemPath + "; will not export its comments");
+                    continue;
+                }
                 final CommentSystem commentSystem = commentSystemResource.adaptTo(CommentSystem.class);
                 final Iterator<Comment> comments = commentSystem.getComments();
                 if (comments.hasNext()) {
