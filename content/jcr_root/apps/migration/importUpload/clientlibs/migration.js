@@ -47,8 +47,10 @@
             var $form = $target.closest("form");
             var postData = new FormData();
             var input  = $('input', $form);
+            var basePath = $('#basePath');
             if (input[0] && input[0].files && input[0].files[0]) {
                 postData.append("file", input[0].files[0]);
+                postData.append("basePath", basePath.val());
                 $.ajax({
                     url: UPLOAD_AND_IMPORT_SERVLET,
                     type: 'POST',

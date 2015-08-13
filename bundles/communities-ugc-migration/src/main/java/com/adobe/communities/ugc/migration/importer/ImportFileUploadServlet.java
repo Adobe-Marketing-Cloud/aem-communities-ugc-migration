@@ -17,21 +17,20 @@
  **************************************************************************/
 package com.adobe.communities.ugc.migration.importer;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-
-import javax.servlet.ServletException;
-
+import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
+import com.adobe.cq.social.calendar.client.endpoints.CalendarOperations;
+import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
+import com.adobe.cq.social.forum.client.endpoints.ForumOperations;
+import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
+import com.adobe.cq.social.qna.client.endpoints.QnaForumOperations;
+import com.adobe.cq.social.tally.client.endpoints.TallyOperationsService;
+import com.adobe.cq.social.ugcbase.SocialUtils;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.CloseShieldInputStream;
+import org.apache.commons.lang.StringUtils;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -51,20 +50,20 @@ import org.apache.sling.api.resource.ValueMap;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.io.JSONWriter;
-
-import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
-import com.adobe.cq.social.calendar.client.endpoints.CalendarOperations;
-import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
-import com.adobe.cq.social.forum.client.endpoints.ForumOperations;
-import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
-import com.adobe.cq.social.qna.client.endpoints.QnaForumOperations;
-import com.adobe.cq.social.tally.client.endpoints.TallyOperationsService;
-import com.adobe.cq.social.ugcbase.SocialUtils;
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.servlet.ServletException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 @Component(label = "UGC Migration File Importer",
         description = "Accepts a zipped archive of migration data, unzips its contents and saves in jcr tree",
@@ -272,7 +271,7 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
         final ZipInputStream zipInputStream = new ZipInputStream(uploadedFileInputStream);
 
         try {
-            saveExplodedFiles(resolver, folder, writer, zipInputStream);
+            saveExplodedFiles(resolver, folder, writer, zipInputStream, request.getParameter("basePath"));
             // close our JSONWriter
             writer.endArray();
             writer.endObject();
@@ -289,7 +288,7 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
     }
 
     private void saveExplodedFiles(final ResourceResolver resolver, final Resource folder, final JSONWriter writer,
-                                   final ZipInputStream zipInputStream) throws ServletException {
+                                   final ZipInputStream zipInputStream, final String basePath) throws ServletException {
 
 
         // we need the closeShieldInputStream to prevent the zipInputStream from being closed during resolver.create()
@@ -339,6 +338,27 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
 
                     // add the file name to our response
                     writer.value(name);
+
+                    // if provided a basePath, import immediately
+                    if (StringUtils.isNotBlank(basePath) && null != file && !(file instanceof NonExistingResource)) {
+                        Resource fileContent = file.getChild(JcrConstants.JCR_CONTENT);
+                        if (null != fileContent && !(fileContent instanceof NonExistingResource)) {
+                            final ValueMap contentVM = fileContent.getValueMap();
+                            InputStream inputStream = (InputStream) contentVM.get(JcrConstants.JCR_DATA);
+                            if (inputStream != null) {
+                                final JsonParser jsonParser = new JsonFactory().createParser(inputStream);
+                                jsonParser.nextToken(); // get the first token
+                                String resName = basePath  + name.substring(0, name.lastIndexOf(".json"));
+                                final Resource resource = resolver.getResource(resName);
+                                try {
+                                    importFile(jsonParser, resource, resolver);
+//                                    deleteResource(file);
+                                } catch(Exception e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                    }
                 }
                 // save the new node(s)
                 resolver.commit();
