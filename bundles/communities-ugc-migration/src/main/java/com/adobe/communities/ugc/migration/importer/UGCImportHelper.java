@@ -108,7 +108,7 @@ public class UGCImportHelper {
 
     private SocialResourceProvider resProvider;
 
-    public final static String SERVICE_MIGRATION = "communities-user-admin";
+    public static List<String> importedPaths = new ArrayList<String>();
 
     public UGCImportHelper() {
     }
@@ -168,7 +168,9 @@ public class UGCImportHelper {
             }
         }
 
-        return provider.create(resolver, path, properties);
+        Resource resource = provider.create(resolver, path, properties);
+        importedPaths.add(resource.getPath());
+        return resource;
     }
 
     public static Map<String, Object> extractSubmap(final JsonParser jsonParser) throws IOException {
@@ -273,6 +275,7 @@ public class UGCImportHelper {
                     properties.put("sling:resourceType", VotingSocialComponent.VOTING_RESOURCE_TYPE);
                     tallyResource = srp.create(resolver, post.getPath() + "/voting", properties);
                     srp.commit(resolver);
+                    importedPaths.add(tallyResource.getPath());
                     properties.remove("sling:resourceType");
                 }
             }
@@ -297,6 +300,7 @@ public class UGCImportHelper {
                     properties.put("sling:resourceType", RatingSocialComponent.RATING_RESOURCE_TYPE);
                     tallyResource = srp.create(resolver, post.getPath() + "/rating_" + randomHexString(), properties);
                     srp.commit(resolver);
+                    importedPaths.add(tallyResource.getPath());
                     properties.remove("sling:resourceType");
                 }
             }
@@ -466,6 +470,7 @@ public class UGCImportHelper {
                             post =
                                 createPost(resource, author, properties, attachments,
                                     resolver.adaptTo(Session.class), operations);
+                            importedPaths.add(post.getPath());
                             resProvider = SocialResourceUtils.getSocialResource(post).getResourceProvider();
                         } catch (Exception e) {
                             throw new ServletException(e.getMessage(), e);
@@ -542,6 +547,7 @@ public class UGCImportHelper {
                     post =
                         createPost(resource, author, properties, attachments, resolver.adaptTo(Session.class),
                             operations);
+                    importedPaths.add(post.getPath());
                     if (null == resProvider) {
                         resProvider = SocialResourceUtils.getSocialResource(post).getResourceProvider();
                     }
@@ -653,7 +659,8 @@ public class UGCImportHelper {
         try {
             Map<String, Object> eventParams = new HashMap<String, Object>();
             eventParams.put("event", requestParams.toString());
-            calendarOperations.createEvent(resource, up, eventParams);
+            Resource event = calendarOperations.createEvent(resource, up, eventParams);
+            importedPaths.add(event.getPath());
         } catch (final OperationException e) {
             //probably caused by creating a folder that already exists. We ignore it, but still log the event.
             LOG.info("There was an operation exception while creating an event");
@@ -718,6 +725,7 @@ public class UGCImportHelper {
                 if (null == translationFolder) {
                     // begin by creating the translation folder resource
                     translationFolder = post.getResourceResolver().create(post, "translation", properties);
+                    importedPaths.add(translationFolder.getPath());
                 }
                 //now check to see if any translations exist
                 if (token == JsonToken.START_OBJECT) {
@@ -758,6 +766,7 @@ public class UGCImportHelper {
                             // add the language-specific translation under the translation folder resource
                             Resource translation = post.getResourceResolver().create(post.getChild("translation"),
                                     languageLabel, translationProperties);
+                            importedPaths.add(translation.getPath());
                             if (null == translation) {
                                 throw new IOException("translation not actually imported");
                             }
@@ -785,7 +794,8 @@ public class UGCImportHelper {
         if (null == translationFolder && properties.containsKey("mtlanguage")) {
             // it's possible that no translations existed, so we need to make sure the translation resource (which
             // includes the original post's detected language) is created anyway
-            post.getResourceResolver().create(post, "translation", properties);
+            Resource translation = post.getResourceResolver().create(post, "translation", properties);
+            importedPaths.add(translation.getPath());
         }
     }
 

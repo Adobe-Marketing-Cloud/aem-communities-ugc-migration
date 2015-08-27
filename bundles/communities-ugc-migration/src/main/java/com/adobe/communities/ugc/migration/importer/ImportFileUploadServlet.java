@@ -30,6 +30,11 @@ import java.util.zip.ZipInputStream;
 
 import javax.servlet.ServletException;
 
+import com.adobe.cq.social.commons.comments.api.Comment;
+import com.adobe.cq.social.forum.client.api.Forum;
+import com.adobe.cq.social.journal.client.api.Journal;
+import com.adobe.cq.social.qna.client.api.QnaPost;
+import com.adobe.cq.social.srp.SocialResourceProvider;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.felix.scr.annotations.Component;
@@ -451,9 +456,25 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
                 if (inputStream != null) {
                     final JsonParser jsonParser = new JsonFactory().createParser(inputStream);
                     jsonParser.nextToken(); // get the first token
-
-                    importFile(jsonParser, resource, resolver);
-                    deleteResource(fileResource);
+                    try {
+                        importFile(jsonParser, resource, resolver);
+                        deleteResource(fileResource);
+                    } catch (final ServletException e) {
+                        // perform a rollback of anything we partially imported
+                        if (!UGCImportHelper.importedPaths.isEmpty()) {
+                            SocialResourceProvider srp = null;
+                            for (final Object resourcePath : UGCImportHelper.importedPaths.toArray()) {
+                                if (null == srp) {
+                                    srp = socialUtils.getSocialResourceProvider((String)resourcePath);
+                                }
+                                srp.delete(resolver, (String)resourcePath);
+                            }
+                            if (null != srp) {
+                                srp.commit(resolver);
+                            }
+                        }
+                        throw e;
+                    }
                     return;
                 }
             }
@@ -478,15 +499,40 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
                 jsonParser.nextToken();
                 final String contentType = jsonParser.getValueAsString();
                 if (contentType.equals(ContentTypeDefinitions.LABEL_QNA_FORUM)) {
-                    importHelper.setQnaForumOperations(qnaForumOperations);
+                    if (resource.isResourceType(QnaPost.RESOURCE_TYPE)) {
+                        importHelper.setQnaForumOperations(qnaForumOperations);
+                    } else {
+                        throw new ServletException("Attempting to put QnA content into resource of the wrong type:"
+                            + resource.getResourceType());
+                    }
                 } else if (contentType.equals(ContentTypeDefinitions.LABEL_FORUM)) {
-                    importHelper.setForumOperations(forumOperations);
+                    if (resource.isResourceType(Forum.RESOURCE_TYPE)) {
+                        importHelper.setForumOperations(forumOperations);
+                    } else {
+                        throw new ServletException("Attempting to put Forum content into resource of the wrong type:"
+                                + resource.getResourceType());
+                    }
                 } else if (contentType.equals(ContentTypeDefinitions.LABEL_COMMENTS)) {
-                    importHelper.setCommentOperations(commentOperations);
+                    if (resource.isResourceType(Comment.COMMENTCOLLECTION_RESOURCETYPE)) {
+                        importHelper.setCommentOperations(commentOperations);
+                    } else {
+                        throw new ServletException("Attempting to put Comments content into resource of the wrong type:"
+                                + resource.getResourceType());
+                    }
                 } else if (contentType.equals(ContentTypeDefinitions.LABEL_CALENDAR)) {
-                    importHelper.setCalendarOperations(calendarOperations);
+                    if (resource.isResourceType(com.adobe.cq.social.calendar.client.api.Calendar.RESOURCE_TYPE)) {
+                        importHelper.setCalendarOperations(calendarOperations);
+                    } else {
+                        throw new ServletException("Attempting to put Calendar content into resource of the wrong type:"
+                                + resource.getResourceType());
+                    }
                 } else if (contentType.equals(ContentTypeDefinitions.LABEL_JOURNAL)) {
-                    importHelper.setJournalOperations(journalOperations);
+                    if (resource.isResourceType(Journal.RESOURCE_TYPE)) {
+                        importHelper.setJournalOperations(journalOperations);
+                    } else {
+                        throw new ServletException("Attempting to put Journal content into resource of the wrong type:"
+                                + resource.getResourceType());
+                    }
                 } else if (contentType.equals(ContentTypeDefinitions.LABEL_TALLY)) {
                     importHelper.setSocialUtils(socialUtils);
                 }
