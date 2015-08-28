@@ -51,7 +51,7 @@
                 <plugin>
                     <groupId>org.apache.felix</groupId>
                     <artifactId>maven-scr-plugin</artifactId>
-                    <version>1.11.0</version>
+                    <version>1.20.0</version>
                     <dependencies>
                         <dependency>
                             <groupId>org.slf4j</groupId>
@@ -138,19 +138,25 @@
         <dependency>
             <groupId>com.adobe.cq.social</groupId>
             <artifactId>cq-social-commons</artifactId>
-            <version>1.5.85</version>
+            <version>1.6.17</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.adobe.cq.social</groupId>
             <artifactId>cq-social-ugcbase-api</artifactId>
-            <version>2.0.5</version>
+            <version>2.1.4</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.adobe.cq.social</groupId>
+            <artifactId>cq-social-ugcbase-impl</artifactId>
+            <version>2.1.7</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.adobe.cq.social</groupId>
             <artifactId>cq-social-as-provider</artifactId>
-            <version>1.1.79</version>
+            <version>1.2.15</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -227,6 +233,12 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.apache.sling</groupId>
+            <artifactId>org.apache.sling.jcr.resource</artifactId>
+            <version>2.5.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>javax.jcr</groupId>
             <artifactId>jcr</artifactId>
             <version>2.0</version>
@@ -276,6 +288,16 @@
             <artifactId>cq-social-scoring</artifactId>
             <version>1.1.9</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongo-java-driver</artifactId>
+            <version>2.12.2</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+            <version>2.5</version>
         </dependency>
     </dependencies>
 </project>

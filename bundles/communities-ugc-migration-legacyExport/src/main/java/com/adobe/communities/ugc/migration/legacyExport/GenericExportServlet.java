@@ -17,6 +17,32 @@
  **************************************************************************/
 package com.adobe.communities.ugc.migration.legacyExport;
 
+import com.adobe.cq.social.calendar.CalendarConstants;
+import com.adobe.cq.social.calendar.CqCalendar;
+import com.adobe.cq.social.calendar.Event;
+import com.adobe.cq.social.commons.Comment;
+import com.adobe.cq.social.commons.CommentSystem;
+import com.adobe.cq.social.forum.api.Forum;
+import com.adobe.cq.social.forum.api.Post;
+import com.adobe.cq.social.journal.Journal;
+import com.adobe.cq.social.journal.JournalEntry;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
+import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Properties;
+import org.apache.felix.scr.annotations.Property;
+import org.apache.felix.scr.annotations.Service;
+import org.apache.sling.api.SlingHttpServletRequest;
+import org.apache.sling.api.SlingHttpServletResponse;
+import org.apache.sling.api.resource.Resource;
+import org.apache.sling.api.resource.ValueMap;
+import org.apache.sling.api.servlets.SlingSafeMethodsServlet;
+import org.apache.sling.commons.json.JSONException;
+import org.apache.sling.commons.json.io.JSONWriter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.servlet.ServletException;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -34,38 +60,13 @@ import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import javax.servlet.ServletException;
-
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
-import org.apache.felix.scr.annotations.Component;
-import org.apache.felix.scr.annotations.Properties;
-import org.apache.felix.scr.annotations.Property;
-import org.apache.felix.scr.annotations.Service;
-import org.apache.sling.api.SlingHttpServletRequest;
-import org.apache.sling.api.SlingHttpServletResponse;
-import org.apache.sling.api.resource.Resource;
-import org.apache.sling.api.resource.ValueMap;
-import org.apache.sling.api.servlets.SlingSafeMethodsServlet;
-import org.apache.sling.commons.json.JSONException;
-import org.apache.sling.commons.json.io.JSONWriter;
-
-import com.adobe.cq.social.calendar.CalendarConstants;
-import com.adobe.cq.social.calendar.CqCalendar;
-import com.adobe.cq.social.calendar.Event;
-import com.adobe.cq.social.commons.Comment;
-import com.adobe.cq.social.commons.CommentSystem;
-import com.adobe.cq.social.forum.api.Forum;
-import com.adobe.cq.social.forum.api.Post;
-import com.adobe.cq.social.journal.Journal;
-import com.adobe.cq.social.journal.JournalEntry;
-
 @Component(label = "UGC Exporter for all UGC Data Types",
         description = "Moves any ugc data into a zip archive for storage or re-import", specVersion = "1.0")
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/ugc/export")})
 public class GenericExportServlet extends SlingSafeMethodsServlet {
 
+    Logger logger = LoggerFactory.getLogger(this.getClass());
     Writer responseWriter;
     ZipOutputStream zip;
     Map<String, Boolean> entries;
@@ -331,34 +332,43 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                                         final Resource resource, final String path) throws IOException, JSONException {
         for(final String commentSystemPath : entries.keySet()) {
             if (!entriesToSkip.containsKey(commentSystemPath)) {
-                final String relPath = commentSystemPath.substring(commentSystemPath.indexOf(path) + path.length());
+                String contentPath = path.substring("/content/usergenerated".length());
+                final String relPath = commentSystemPath.substring(commentSystemPath.indexOf(contentPath) + contentPath.length());
                 String entryName = relPath.isEmpty() ? ".root.json" : relPath + ".json";
                 responseWriter = new OutputStreamWriter(zip);
                 final JSONWriter writer = new JSONWriter(responseWriter);
                 writer.setTidy(true);
                 final Resource commentSystemResource = resource.getResourceResolver()
                         .getResource(commentSystemPath);
+                if (commentSystemResource == null) {
+                    logger.error("Could not find comment parent resource: " + commentSystemPath + "; will not export its comments");
+                    continue;
+                }
                 final CommentSystem commentSystem = commentSystemResource.adaptTo(CommentSystem.class);
                 final Iterator<Comment> comments = commentSystem.getComments();
                 if (comments.hasNext()) {
-                    zip.putNextEntry(new ZipEntry(entryName));
-                    final JSONWriter commentsNode = writer.object();
-                    commentsNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
-                    commentsNode.value(ContentTypeDefinitions.LABEL_COMMENTS);
-                    commentsNode.key(ContentTypeDefinitions.LABEL_CONTENT);
-                    commentsNode.object();
-                    while (comments.hasNext()) {
-                        final Comment comment = comments.next();
-                        commentsNode.key(comment.getId());
-                        final JSONWriter commentObject = commentsNode.object();
-                        UGCExportHelper.extractComment(commentObject, comment,
-                                resource.getResourceResolver(), responseWriter);
+                    try {
+                        zip.putNextEntry(new ZipEntry(entryName));
+                        final JSONWriter commentsNode = writer.object();
+                        commentsNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
+                        commentsNode.value(ContentTypeDefinitions.LABEL_COMMENTS);
+                        commentsNode.key(ContentTypeDefinitions.LABEL_CONTENT);
+                        commentsNode.object();
+                        while (comments.hasNext()) {
+							final Comment comment = comments.next();
+							commentsNode.key(comment.getId());
+							final JSONWriter commentObject = commentsNode.object();
+							UGCExportHelper.extractComment(commentObject, comment,
+									resource.getResourceResolver(), responseWriter);
+							commentsNode.endObject();
+						}
                         commentsNode.endObject();
+                        writer.endObject();
+                        responseWriter.flush();
+                        zip.closeEntry();
+                    } catch (Exception e) {
+                        logger.error("Cannot add zip entry: " + e);
                     }
-                    commentsNode.endObject();
-                    writer.endObject();
-                    responseWriter.flush();
-                    zip.closeEntry();
                 }
             }
         }

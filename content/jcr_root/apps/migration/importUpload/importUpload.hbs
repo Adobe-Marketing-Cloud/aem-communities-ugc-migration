@@ -30,19 +30,22 @@
   </div>
   <form class="scf-js-file-upload-form coral-Form coral-Form--vertical">
     <div class="coral-Form-fieldwrapper coral-Form-fieldwrapper--alignRight">
-      <span class="coral-FileUpload" data-init="fileupload">
-        <span class="coral-FileUpload-trigger coral-Button">
-          <input class="coral-FileUpload-input"
-            type="file"
-            title="Select File"
-            name="migrationFile"
-            data-upload-url="etc/migration/uploadFile"
-            data-usehtml5="true"
-            data-size-limit="100000000"
-            data-mime-types='["zip"]'>
+      <section class="coral-Form-fieldset">
+        <span class="coral-FileUpload" data-init="fileupload">
+            <span class="coral-FileUpload-trigger coral-Button">
+              <input class="coral-FileUpload-input"
+                     type="file"
+                     title="Select File"
+                     name="migrationFile"
+                     data-upload-url="etc/migration/uploadFile"
+                     data-usehtml5="true"
+                     data-size-limit="100000000"
+                     data-mime-types='["zip"]'>
+            </span>
         </span>
-      </span>
-      <button class="coral-Form-field coral-Button coral-Button--primary">{{i18n "Upload"}}</button>
+        <input class="coral-Form-field coral-Textfield" id="basePath" type="text" placeholder="Type a base path here to automatically import everything">
+        <button class="coral-Form-field coral-Button coral-Button--primary">{{i18n "Upload"}}</button>
+      </section>
     </div>
   </form>
   <form class="scf-js-file-selection-form coral-Form coral-Form--vertical" style="display: none;">
