@@ -60,6 +60,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.zip.ZipEntry;
@@ -307,6 +308,7 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
         } catch (final IOException e) {
             throw new ServletException("Unable to read entries from uploaded zip archive", e);
         }
+        final List<Resource> toDelete = new ArrayList<Resource>();
         while (zipEntry != null) {
             // store files under the provided folder
             try {
@@ -336,9 +338,6 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
                     fileProperties.put(JcrConstants.JCR_PRIMARYTYPE, "nt:resource");
                     resolver.create(file, JcrConstants.JCR_CONTENT, fileProperties);
 
-                    // add the file name to our response
-                    writer.value(name);
-
                     // if provided a basePath, import immediately
                     if (StringUtils.isNotBlank(basePath) && null != file && !(file instanceof NonExistingResource)) {
                         Resource fileContent = file.getChild(JcrConstants.JCR_CONTENT);
@@ -352,15 +351,20 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
                                 final Resource resource = resolver.getResource(resName);
                                 try {
                                     importFile(jsonParser, resource, resolver);
-//                                    deleteResource(file);
-                                } catch(Exception e) {
-                                    e.printStackTrace();
+                                    toDelete.add(file);
+                                } catch(final Exception e) {
+                                    // add the file name to our response ONLY if we failed to import it
+                                    writer.value(name);
+                                    // we want to log the reason we weren't able to import, but don't stop importing
+                                    LOG.error(e.getMessage());
                                 }
                             }
                         }
+                    } else if (StringUtils.isBlank(basePath) && null != file && !(file instanceof NonExistingResource)){
+                        // add the file name to our response
+                        writer.value(name);
                     }
                 }
-                // save the new node(s)
                 resolver.commit();
                 zipEntry = zipInputStream.getNextEntry();
             } catch (final IOException e) {
@@ -372,6 +376,12 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
             }
         }
         closeShieldInputStream.close();
+        // delete any files that were successfully imported
+        if (!toDelete.isEmpty()) {
+            for (final Resource deleteResource : toDelete) {
+                deleteResource(deleteResource);
+            }
+        }
     }
 
     protected void doDelete(final SlingHttpServletRequest request, final SlingHttpServletResponse response)

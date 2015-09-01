@@ -72,8 +72,10 @@
                         showAlert("success", "Your migration data has been saved.", "Success");
                         // display import view
                         data = JSON.parse(data);
-                        displayImportForm(data['files'], data['folderName'], data['filename'], data['uploadDate'], select);
-                        $('form.scf-js-file-selection-form').show();
+                        if (data['files'].length > 0) {
+                            displayImportForm(data['files'], data['folderName'], data['filename'], data['uploadDate'], select);
+                            $('form.scf-js-file-selection-form').show();
+                        }
                     },
                     error:function(jqXHR) {
                         showAlert("error", "Your migration data has not saved: " + jqXHR.statusCode() + " : " +
