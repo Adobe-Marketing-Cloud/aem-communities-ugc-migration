@@ -331,8 +331,8 @@ public class UGCExportHelper {
         }
         final Iterable<Resource> children = thisResource.getChildren();
         for (final Resource child : children) {
-            if (child.isResourceType("social/tally/components/hbs/voting")) {
-            // string above would be the constant 'VotingSocialComponent.VOTING_RESOURCE_TYPE' if available in 5.6.1
+            if (child.isResourceType("social/tally/components/hbs/voting") ||
+                child.isResourceType("social/tally/components/voting")) {
                 writer.key(ContentTypeDefinitions.LABEL_TALLY);
                 final JSONWriter voteObjects = writer.array();
                 UGCExportHelper.extractTally(voteObjects, child, "Voting");
@@ -426,8 +426,8 @@ public class UGCExportHelper {
         }
         final Iterable<Resource> children = thisResource.getChildren();
         for (final Resource child : children) {
-            if (child.isResourceType("social/tally/components/hbs/voting")) {
-                // string above would be the constant 'VotingSocialComponent.VOTING_RESOURCE_TYPE' if available in 5.6.1
+            if (child.isResourceType("social/tally/components/hbs/voting") ||
+                child.isResourceType("social/tally/components/voting")) {
                 writer.key(ContentTypeDefinitions.LABEL_TALLY);
                 final JSONWriter voteObjects = writer.array();
                 UGCExportHelper.extractTally(voteObjects, child, "Voting");
