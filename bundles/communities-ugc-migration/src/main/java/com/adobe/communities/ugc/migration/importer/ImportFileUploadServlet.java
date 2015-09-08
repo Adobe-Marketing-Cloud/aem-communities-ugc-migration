@@ -63,7 +63,6 @@ import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
 import com.adobe.cq.social.forum.client.endpoints.ForumOperations;
 import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
 import com.adobe.cq.social.qna.client.endpoints.QnaForumOperations;
-import com.adobe.cq.social.serviceusers.internal.ServiceUserWrapper;
 import com.adobe.cq.social.tally.client.endpoints.TallyOperationsService;
 import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.fasterxml.jackson.core.JsonFactory;
@@ -80,14 +79,6 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
     private static final Logger LOG = LoggerFactory.getLogger(ImportFileUploadServlet.class);
 
     public final static String UPLOAD_DIR = "/etc/migration/uploadFile";
-
-    /**
-     * this will be the resolver used for importing
-     */
-    private ResourceResolver serviceResolver;
-
-    @Reference
-    private ServiceUserWrapper serviceUserWrapper;
 
     @Reference
     private ForumOperations forumOperations;
@@ -471,15 +462,6 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
         final ResourceResolver resolver = request.getResourceResolver();
         UGCImportHelper.checkUserPrivileges(resolver, rrf);
 
-        final Map<String, Object> authenticationInfo = new HashMap<String, Object>();
-        authenticationInfo.put(ResourceResolverFactory.SUBSERVICE, "ugc-writer");
-
-        try {
-            serviceResolver = serviceUserWrapper.getServiceResourceResolver(rrf, authenticationInfo);
-        } catch (final LoginException e) {
-            LOG.error("Service not starting, unable to get service resolver:", e);
-            throw new IllegalStateException(e);
-        }
         final Resource resource = resolver.getResource(path);
         if (resource == null) {
             throw new ServletException("Could not find a valid resource for import");
@@ -503,7 +485,7 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
                     final JsonParser jsonParser = new JsonFactory().createParser(inputStream);
                     jsonParser.nextToken(); // get the first token
 
-                    importFile(jsonParser, resource, serviceResolver);
+                    importFile(jsonParser, resource, resolver);
                     deleteResource(fileResource);
                     return;
                 }

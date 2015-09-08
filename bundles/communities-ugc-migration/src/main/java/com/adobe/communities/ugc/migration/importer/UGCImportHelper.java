@@ -108,8 +108,6 @@ public class UGCImportHelper {
 
     private SocialResourceProvider resProvider;
 
-    public final static String SERVICE_MIGRATION = "communities-user-admin";
-
     public UGCImportHelper() {
     }
 
