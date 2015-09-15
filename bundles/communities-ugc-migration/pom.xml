@@ -278,12 +278,6 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.adobe.cq.social</groupId>
-            <artifactId>cq-social-serviceusers-api</artifactId>
-            <version>1.0.0</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
             <groupId>com.adobe.granite</groupId>
             <artifactId>com.adobe.granite.socialgraph</artifactId>
             <version>0.0.18</version>

@@ -26,7 +26,6 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -42,8 +41,7 @@ import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.servlet.ServletException;
 
-import com.adobe.cq.social.commons.FileDataSource;
-import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
+import com.adobe.cq.social.tally.TallyConstants;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.jackrabbit.api.security.user.Authorizable;
@@ -64,13 +62,15 @@ import com.adobe.cq.social.calendar.CalendarConstants;
 import com.adobe.cq.social.calendar.client.endpoints.CalendarOperations;
 import com.adobe.cq.social.calendar.client.endpoints.CalendarRequestConstants;
 import com.adobe.cq.social.commons.Comment;
+import com.adobe.cq.social.commons.FileDataSource;
 import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
+import com.adobe.cq.social.datastore.provider.impl.AbstractSchemaMapper;
 import com.adobe.cq.social.forum.client.endpoints.ForumOperations;
+import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
 import com.adobe.cq.social.qna.client.endpoints.QnaForumOperations;
 import com.adobe.cq.social.scf.OperationException;
 import com.adobe.cq.social.srp.SocialResourceProvider;
 import com.adobe.cq.social.srp.config.SocialResourceConfiguration;
-import com.adobe.cq.social.tally.Poll;
 import com.adobe.cq.social.tally.Tally;
 import com.adobe.cq.social.tally.Voting;
 import com.adobe.cq.social.tally.client.api.RatingSocialComponent;
@@ -107,8 +107,6 @@ public class UGCImportHelper {
     private SocialUtils socialUtils;
 
     private SocialResourceProvider resProvider;
-
-    public final static String SERVICE_MIGRATION = "communities-user-admin";
 
     public UGCImportHelper() {
     }
@@ -223,7 +221,7 @@ public class UGCImportHelper {
             while (!jsonParser.getCurrentToken().equals(JsonToken.END_OBJECT)) {
                 final String label = jsonParser.getCurrentName();
                 jsonParser.nextToken(); // should be FIELD_VALUE
-                if (label.equals("timestamp")) {
+                if (label.equals(TallyConstants.TIMESTAMP_PROPERTY)) {
                     timestamp = jsonParser.getValueAsLong();
                 } else {
                     final String responseValue = jsonParser.getValueAsString();
@@ -307,7 +305,7 @@ public class UGCImportHelper {
         }
         // Needed params:
         try {
-            properties.put("timestamp", calendar);
+            properties.put(TallyConstants.TIMESTAMP_PROPERTY, calendar);
             tallyOperationsService.setTallyResponse(tally.getTallyTarget(), userIdentifier,
                 resolver.adaptTo(Session.class), response, tallyType, properties);
         } catch (final OperationException e) {
