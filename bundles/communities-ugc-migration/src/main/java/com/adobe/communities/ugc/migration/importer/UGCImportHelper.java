@@ -58,13 +58,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
-import com.adobe.cq.social.calendar.CalendarConstants;
 import com.adobe.cq.social.calendar.client.endpoints.CalendarOperations;
 import com.adobe.cq.social.calendar.client.endpoints.CalendarRequestConstants;
 import com.adobe.cq.social.commons.Comment;
 import com.adobe.cq.social.commons.FileDataSource;
 import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
-import com.adobe.cq.social.datastore.provider.impl.AbstractSchemaMapper;
 import com.adobe.cq.social.forum.client.endpoints.ForumOperations;
 import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
 import com.adobe.cq.social.qna.client.endpoints.QnaForumOperations;
@@ -107,6 +105,13 @@ public class UGCImportHelper {
     private SocialUtils socialUtils;
 
     private SocialResourceProvider resProvider;
+
+    /**
+     * These values ought to come from com.adobe.cq.social.calendar.CalendarConstants, but that class isn't in the
+     * uberjar, so I'll define the constants here instead.
+     */
+    final static String PN_START = "calendar_event_start_dt";
+    final static String PN_END = "calendar_event_end_dt";
 
     public UGCImportHelper() {
     }
@@ -603,7 +608,7 @@ public class UGCImportHelper {
                 String field = jsonParser.getCurrentName();
                 jsonParser.nextToken();
 
-                if (field.equals(CalendarConstants.PN_START) || field.equals(CalendarConstants.PN_END)) {
+                if (field.equals(PN_START) || field.equals(PN_END)) {
                     final Long value = jsonParser.getValueAsLong();
                     final Calendar calendar = new GregorianCalendar();
                     calendar.setTimeInMillis(value);
@@ -612,7 +617,7 @@ public class UGCImportHelper {
                     // this is the ISO-8601 format expected by the CalendarOperations object
                     final DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm+00:00");
                     df.setTimeZone(tz);
-                    if (field.equals(CalendarConstants.PN_START)) {
+                    if (field.equals(PN_START)) {
                         requestParams.put(CalendarRequestConstants.START_DATE, df.format(date));
                     } else {
                         requestParams.put(CalendarRequestConstants.END_DATE, df.format(date));

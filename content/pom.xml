@@ -20,13 +20,6 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>com.adobe.cq.social</groupId>
-        <artifactId>socialcommunities-parent</artifactId>
-        <version>1.1.53</version>
-        <relativePath />
-    </parent>
-
     <groupId>com.adobe.communities</groupId>
     <artifactId>communities-ugc-migration-pkg</artifactId>
     <version>1.0.0-SNAPSHOT</version>
@@ -224,9 +217,11 @@
                         <artifactId>jetty-jspc-maven-plugin</artifactId>
                         <dependencies>
                             <dependency>
-                                <groupId>com.adobe.cq.social</groupId>
-                                <artifactId>cq-social-scf-api</artifactId>
-                                <version>1.0.7</version>
+                                <groupId>com.adobe.aem</groupId>
+                                <artifactId>uber-jar</artifactId>
+                                <version>6.1.0</version>
+                                <classifier>obfuscated-apis</classifier>
+                                <scope>provided</scope>
                             </dependency>
                             <dependency>
                                 <groupId>com.adobe.granite</groupId>
@@ -261,6 +256,33 @@
             <artifactId>communities-ugc-migration</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-checkstyle-plugin</artifactId>
+            <version>2.9.1</version>
+            <type>maven-plugin</type>
+        </dependency>
+        <dependency>
+            <groupId>org.codehaus.plexus</groupId>
+            <artifactId>plexus-resources</artifactId>
+            <version>1.0.1</version>
+        </dependency>
     </dependencies>
 
+    <repositories>
+        <repository>
+            <id>adobe-public-releases</id>
+            <name>Adobe Public Repository</name>
+            <url>https://repo.adobe.com/nexus/content/groups/public/</url>
+            <layout>default</layout>
+        </repository>
+    </repositories>
+    <pluginRepositories>
+        <pluginRepository>
+            <id>adobe-public-releases</id>
+            <name>Adobe Public Repository</name>
+            <url>https://repo.adobe.com/nexus/content/groups/public/</url>
+            <layout>default</layout>
+        </pluginRepository>
+    </pluginRepositories>
 </project>
