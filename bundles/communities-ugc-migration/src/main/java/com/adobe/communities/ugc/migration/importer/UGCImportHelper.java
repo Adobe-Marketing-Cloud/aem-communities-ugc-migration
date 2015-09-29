@@ -268,8 +268,8 @@ public class UGCImportHelper {
                 }
                 if (tallyResource == null) {
                     properties.put("sling:resourceType", VotingSocialComponent.VOTING_RESOURCE_TYPE);
-                    tallyResource = srp.create(resolver, post.getPath() + "/voting", properties);
-                    srp.commit(resolver);
+                    tallyResource = resolver.create(post, "voting", properties);
+                    resolver.commit();
                     properties.remove("sling:resourceType");
                 }
             }
