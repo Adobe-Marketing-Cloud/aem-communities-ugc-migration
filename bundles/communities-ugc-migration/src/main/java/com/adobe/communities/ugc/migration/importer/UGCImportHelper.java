@@ -1,19 +1,13 @@
 /*************************************************************************
  *
- * ADOBE CONFIDENTIAL
- * __________________
+ * ADOBE SYSTEMS INCORPORATED
+ * Copyright 2015 Adobe Systems Incorporated
+ * All Rights Reserved.
  *
- *  Copyright 2015 Adobe Systems Incorporated
- *  All Rights Reserved.
- *
- * NOTICE:  All information contained herein is, and remains
- * the property of Adobe Systems Incorporated and its suppliers,
- * if any.  The intellectual and technical concepts contained
- * herein are proprietary to Adobe Systems Incorporated and its
- * suppliers and are protected by trade secret or copyright law.
- * Dissemination of this information or reproduction of this material
- * is strictly forbidden unless prior written permission is obtained
- * from Adobe Systems Incorporated.
+ * NOTICE:  Adobe permits you to use, modify, and distribute this file in accordance with the
+ * terms of the Adobe license agreement accompanying it.  If you have received this file from a
+ * source other than Adobe, then your use, modification, or distribution of it requires the prior
+ * written permission of Adobe.
  **************************************************************************/
 package com.adobe.communities.ugc.migration.importer;
 
@@ -58,13 +52,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
-import com.adobe.cq.social.calendar.CalendarConstants;
 import com.adobe.cq.social.calendar.client.endpoints.CalendarOperations;
 import com.adobe.cq.social.calendar.client.endpoints.CalendarRequestConstants;
 import com.adobe.cq.social.commons.Comment;
 import com.adobe.cq.social.commons.FileDataSource;
 import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
-import com.adobe.cq.social.datastore.provider.impl.AbstractSchemaMapper;
 import com.adobe.cq.social.forum.client.endpoints.ForumOperations;
 import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
 import com.adobe.cq.social.qna.client.endpoints.QnaForumOperations;
@@ -107,6 +99,13 @@ public class UGCImportHelper {
     private SocialUtils socialUtils;
 
     private SocialResourceProvider resProvider;
+
+    /**
+     * These values ought to come from com.adobe.cq.social.calendar.CalendarConstants, but that class isn't in the
+     * uberjar, so I'll define the constants here instead.
+     */
+    final static String PN_START = "calendar_event_start_dt";
+    final static String PN_END = "calendar_event_end_dt";
 
     public UGCImportHelper() {
     }
@@ -269,8 +268,8 @@ public class UGCImportHelper {
                 }
                 if (tallyResource == null) {
                     properties.put("sling:resourceType", VotingSocialComponent.VOTING_RESOURCE_TYPE);
-                    tallyResource = srp.create(resolver, post.getPath() + "/voting", properties);
-                    srp.commit(resolver);
+                    tallyResource = resolver.create(post, "voting", properties);
+                    resolver.commit();
                     properties.remove("sling:resourceType");
                 }
             }
@@ -603,7 +602,7 @@ public class UGCImportHelper {
                 String field = jsonParser.getCurrentName();
                 jsonParser.nextToken();
 
-                if (field.equals(CalendarConstants.PN_START) || field.equals(CalendarConstants.PN_END)) {
+                if (field.equals(PN_START) || field.equals(PN_END)) {
                     final Long value = jsonParser.getValueAsLong();
                     final Calendar calendar = new GregorianCalendar();
                     calendar.setTimeInMillis(value);
@@ -612,7 +611,7 @@ public class UGCImportHelper {
                     // this is the ISO-8601 format expected by the CalendarOperations object
                     final DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm+00:00");
                     df.setTimeZone(tz);
-                    if (field.equals(CalendarConstants.PN_START)) {
+                    if (field.equals(PN_START)) {
                         requestParams.put(CalendarRequestConstants.START_DATE, df.format(date));
                     } else {
                         requestParams.put(CalendarRequestConstants.END_DATE, df.format(date));
