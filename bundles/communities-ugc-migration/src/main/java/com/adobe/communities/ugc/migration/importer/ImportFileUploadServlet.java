@@ -11,20 +11,17 @@
  **************************************************************************/
 package com.adobe.communities.ugc.migration.importer;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-
-import javax.servlet.ServletException;
-
+import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
+import com.adobe.cq.social.calendar.client.endpoints.CalendarOperations;
+import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
+import com.adobe.cq.social.forum.client.endpoints.ForumOperations;
+import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
+import com.adobe.cq.social.qna.client.endpoints.QnaForumOperations;
+import com.adobe.cq.social.tally.client.endpoints.TallyOperationsService;
+import com.adobe.cq.social.ugcbase.SocialUtils;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.commons.lang.StringUtils;
@@ -37,7 +34,6 @@ import org.apache.jackrabbit.JcrConstants;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.request.RequestParameter;
-import org.apache.sling.api.resource.LoginException;
 import org.apache.sling.api.resource.NonExistingResource;
 import org.apache.sling.api.resource.PersistenceException;
 import org.apache.sling.api.resource.Resource;
@@ -51,17 +47,18 @@ import org.apache.sling.commons.json.io.JSONWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
-import com.adobe.cq.social.calendar.client.endpoints.CalendarOperations;
-import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
-import com.adobe.cq.social.forum.client.endpoints.ForumOperations;
-import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
-import com.adobe.cq.social.qna.client.endpoints.QnaForumOperations;
-import com.adobe.cq.social.tally.client.endpoints.TallyOperationsService;
-import com.adobe.cq.social.ugcbase.SocialUtils;
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
+import javax.servlet.ServletException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 @Component(label = "UGC Migration File Importer",
         description = "Accepts a zipped archive of migration data, unzips its contents and saves in jcr tree",
@@ -344,7 +341,11 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
                                 final JsonParser jsonParser = new JsonFactory().createParser(inputStream);
                                 jsonParser.nextToken(); // get the first token
                                 String resName = basePath + name.substring(0, name.lastIndexOf(".json"));
-                                final Resource resource = resolver.getResource(resName);
+                                Resource resource = resolver.getResource(resName);
+                                if (resource == null) {
+                                    // voting does not have a node under articles
+                                    resource = resolver.getResource(resName.substring(0, resName.lastIndexOf("/")));
+                                }
                                 try {
                                     importFile(jsonParser, resource, resolver);
                                     toDelete.add(file);
