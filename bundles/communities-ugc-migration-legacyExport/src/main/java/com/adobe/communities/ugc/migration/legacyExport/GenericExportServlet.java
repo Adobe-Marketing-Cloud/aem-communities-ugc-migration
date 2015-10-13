@@ -350,6 +350,9 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                         commentsNode.object();
                         while (comments.hasNext()) {
 							final Comment comment = comments.next();
+                            if (null == comment) {
+                                continue;
+                            }
 							commentsNode.key(comment.getId());
 							final JSONWriter commentObject = commentsNode.object();
 							UGCExportHelper.extractComment(commentObject, comment,
