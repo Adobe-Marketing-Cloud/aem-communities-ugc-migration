@@ -268,6 +268,7 @@ public class UGCImportHelper {
                 }
                 if (tallyResource == null) {
                     properties.put("sling:resourceType", VotingSocialComponent.VOTING_RESOURCE_TYPE);
+                    properties.put("social:parentid", post.getPath());
                     tallyResource = resolver.create(post, "voting", properties);
                     try {
                         resolver.commit();
