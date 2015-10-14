@@ -101,7 +101,7 @@
                         <embedded>
                             <groupId>com.adobe.communities</groupId>
                             <artifactId>communities-ugc-migration</artifactId>
-                            <target>/apps/migration</target>
+                            <target>/apps/migration/install</target>
                         </embedded>
                     </embeddeds>
 

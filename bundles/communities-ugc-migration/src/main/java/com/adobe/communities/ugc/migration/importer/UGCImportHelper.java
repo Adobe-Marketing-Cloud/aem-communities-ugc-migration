@@ -269,7 +269,12 @@ public class UGCImportHelper {
                 if (tallyResource == null) {
                     properties.put("sling:resourceType", VotingSocialComponent.VOTING_RESOURCE_TYPE);
                     tallyResource = resolver.create(post, "voting", properties);
-                    resolver.commit();
+                    try {
+                        resolver.commit();
+                    } catch (Exception e) {
+                        // ignoring exception to let the rest of the file get imported
+                        LOG.error("Could not create vote {} on post {}", tallyResource, post);
+                    }
                     properties.remove("sling:resourceType");
                 }
             }
