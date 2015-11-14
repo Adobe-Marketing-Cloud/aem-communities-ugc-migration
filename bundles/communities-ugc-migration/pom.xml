@@ -90,6 +90,10 @@
                 <configuration>
                     <instructions>
                         <Bundle-Category>communities</Bundle-Category>
+                        <Import-Package>
+                            com.adobe.cq.social.scoring.api;version="[1.1,3)",
+                            *
+                        </Import-Package>
                     </instructions>
                 </configuration>
             </plugin>
@@ -142,6 +146,11 @@
         </dependency>
 
         <!-- APIs -->
+        <dependency>
+            <groupId>com.adobe.cq.social</groupId>
+            <artifactId>cq-socialcommunities-api</artifactId>
+            <version>1.8.288</version>
+        </dependency>
         <dependency>
             <groupId>com.adobe.aem</groupId>
             <artifactId>uber-jar</artifactId>

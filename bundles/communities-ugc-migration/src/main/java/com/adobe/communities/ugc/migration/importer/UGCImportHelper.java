@@ -599,7 +599,7 @@ public class UGCImportHelper {
 
     protected void extractEvent(final JsonParser jsonParser, final Resource resource) throws IOException {
 
-        UserProperties up = null;
+        String author = null;
         final JSONObject requestParams = new JSONObject();
         try {
             jsonParser.nextToken();
@@ -636,8 +636,7 @@ public class UGCImportHelper {
                         // do nothing, just log the error
                     }
                 } else if (field.equals("jcr:createdBy")) {
-                    final String value = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
-                    up = new AuthIDProperties(value);
+                    author = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
                 } else if (field.equals(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS)) {
                     jsonParser.skipChildren(); // we do nothing with these because they're going to be put into json
                 } else {
@@ -656,7 +655,7 @@ public class UGCImportHelper {
         try {
             Map<String, Object> eventParams = new HashMap<String, Object>();
             eventParams.put("event", requestParams.toString());
-            calendarOperations.createEvent(resource, up, eventParams);
+            calendarOperations.create(resource, author, eventParams, null, resource.getResourceResolver().adaptTo(Session.class));
         } catch (final OperationException e) {
             //probably caused by creating a folder that already exists. We ignore it, but still log the event.
             LOG.info("There was an operation exception while creating an event");
@@ -870,83 +869,6 @@ public class UGCImportHelper {
          */
         public long getSize() {
             return size;
-        }
-    }
-
-    /**
-     * I know - this is a lot of code for such a tiny function, but better here than in the method which uses it.
-     */
-    private class AuthIDProperties implements UserProperties {
-
-        private String value;
-
-        public AuthIDProperties(final String authID) {
-            value = authID;
-        }
-
-        @Override
-        public String getAuthorizableID() {
-            return value;
-        }
-
-        @Override
-        public String getAuthorizablePath() {
-            return null;
-        }
-
-        @Override
-        public Node getNode() {
-            return null;
-        }
-
-        @Override
-        public String[] getPropertyNames() throws RepositoryException {
-            return new String[0];
-        }
-
-        @Override
-        public String[] getPropertyNames(String s) throws RepositoryException {
-            return new String[0];
-        }
-
-        @Override
-        public String getProperty(String s) throws RepositoryException {
-            return null;
-        }
-
-        @Override
-        public <T> T getProperty(String s, T t, Class<T> tClass) throws RepositoryException {
-            return null;
-        }
-
-        @Override
-        public Resource getResource(String s) throws RepositoryException {
-            return null;
-        }
-
-        @Override
-        public Iterator<Resource> getResources(String s) throws RepositoryException {
-            return null;
-        }
-
-        @Override
-        public String getResourcePath(String s, String s2, String s3) throws RepositoryException {
-            return null;
-        }
-
-        @Override
-        public String getDisplayName() throws RepositoryException {
-            return null;
-        }
-
-        @Override
-        public String getDisplayName(String s) throws RepositoryException {
-            return null;
-        }
-
-        @Override
-        public boolean isGroupProperties() {
-            return false;
         }
     }
 }
