@@ -12,7 +12,6 @@
 package com.adobe.communities.ugc.migration.importer;
 
 import com.adobe.cq.social.scoring.api.ScoreOperation;
-import com.adobe.cq.social.scoring.api.ScoringConstants;
 import com.adobe.cq.social.srp.SocialResourceProvider;
 import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.adobe.granite.security.user.UserProperties;
@@ -218,8 +217,7 @@ public class ScoresImportServlet extends SlingAllMethodsServlet {
             if (userResource != null) {
                 final SocialResourceProvider socialResourceProvider = getSocialResourceProvider(userResource);
                 if (socialUtils != null) {
-                    final String path = socialUtils.resourceToUGCStoragePath(userResource) + "/"
-                            + ScoringConstants.SCORING_NODE;
+                    final String path = socialUtils.resourceToUGCStoragePath(userResource) + "/scoring";
                     resource = resolver.getResource(path);
                     LOG.trace("Getting scoring resource: {}", path);
 
