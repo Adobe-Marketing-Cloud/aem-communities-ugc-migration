@@ -27,7 +27,7 @@ Since messages and social graphs can only be migrated from 6.0 (as they didn't e
 # Exporting UGC using the legacy export servlet (works in both 5.6.1 and 6.0 installations)
 1. Build the package "communities-ugc-migration-legacyExport" using maven.
 2. Install the resulting .jar file in /system/console/bundles of the machine you want to export from.
-3. Go to /crx/de and expand /content/usergenerated to find the root node for the content you wish to export. Copy the path to the root of the components you wish to export.
+3. Go to /crx/de and expand /content to find the root node for the component you wish to export (not within /content/usergenerated). Copy the path to the root of the components you wish to export.
 4. In your browser, go to /services/social/ugc/export?path=[path you copied in crx/de]. This will trigger a file download of a zip archive containing all the UGC at or below the root node path you provided.
 5. To export profile scores, you will need to look up the path to your system's profiles. By default, it is /home/users, but your value may be custom.
 6. Go to /services/social/scores/export?path=/home/users (replace /home/users with your own value if it's different). Save the response as a json file.
