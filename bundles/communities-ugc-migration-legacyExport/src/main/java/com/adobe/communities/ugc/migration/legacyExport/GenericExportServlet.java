@@ -326,8 +326,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                                         final Resource resource, final String path) throws IOException, JSONException {
         for(final String commentSystemPath : entries.keySet()) {
             if (!entriesToSkip.containsKey(commentSystemPath)) {
-                String contentPath = path.substring("/content/usergenerated".length());
-                final String relPath = commentSystemPath.substring(commentSystemPath.indexOf(contentPath) + contentPath.length());
+                final String relPath = commentSystemPath.substring(commentSystemPath.indexOf(path) + path.length());
                 String entryName = relPath.isEmpty() ? ".root.json" : relPath + ".json";
                 responseWriter = new OutputStreamWriter(zip);
                 final JSONWriter writer = new JSONWriter(responseWriter);
