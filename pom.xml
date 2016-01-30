@@ -38,4 +38,17 @@
         <module>content</module>
     </modules>
 
+    <distributionManagement>
+        <snapshotRepository>
+            <id>${snapshotRepository-Id}</id>
+            <name>${snapshotRepository-Name}</name>
+            <url>${snapshotRepository-URL}</url>
+        </snapshotRepository>
+        <repository>
+            <id>${releaseRepository-Id}</id>
+            <name>${releaseRepository-Name}</name>
+            <url>${releaseRepository-URL}</url>
+        </repository>
+    </distributionManagement>
+
 </project>
