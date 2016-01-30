@@ -35,7 +35,7 @@
     <!-- ====================================================================== -->
     <artifactId>communities-ugc-migration-pkg</artifactId>
     <packaging>content-package</packaging>
-    <name>AEM Communities Migration - Package</name>
+    <name>AEM Communities UGC Migration - Package</name>
 
     <build>
         <resources>

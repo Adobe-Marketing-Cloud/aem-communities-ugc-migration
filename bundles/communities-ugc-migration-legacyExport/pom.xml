@@ -35,7 +35,7 @@
     <!-- ====================================================================== -->
     <artifactId>communities-ugc-migration-legacyExport</artifactId>
     <packaging>bundle</packaging>
-    <name>AEM Social Communities UGC Migration - Bundle</name>
+    <name>AEM Communities UGC Migration - Bundle</name>
 
     <!-- ====================================================================== -->
     <!-- B U I L D   D E F I N I T I O N                                        -->

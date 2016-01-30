@@ -26,7 +26,7 @@
     <artifactId>communities-ugc-migration-reactor</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>AEM Social Communities UGC Migration - Reactor</name>
+    <name>AEM Communities UGC Migration - Reactor</name>
 
     <!-- ====================================================================== -->
     <!-- M O D U L E S                                                          -->
