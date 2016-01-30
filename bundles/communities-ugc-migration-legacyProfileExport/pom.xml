@@ -128,7 +128,7 @@
     <dependencies>
         <!-- APIs -->
         <dependency>
-            <groupId>com.adobe.communities</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>communities-ugc-migration-legacyExport</artifactId>
             <version>1.0.0-SNAPSHOT</version>
             <scope>provided</scope>
