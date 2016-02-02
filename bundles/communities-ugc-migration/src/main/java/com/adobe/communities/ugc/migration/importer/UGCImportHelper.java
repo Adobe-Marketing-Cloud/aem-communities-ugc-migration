@@ -11,36 +11,65 @@
  **************************************************************************/
 package com.adobe.communities.ugc.migration.importer;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.security.Principal;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
+import java.util.ResourceBundle;
 import java.util.TimeZone;
 
 import javax.activation.DataSource;
+import javax.annotation.Nonnull;
 import javax.jcr.Node;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
+import javax.servlet.AsyncContext;
+import javax.servlet.DispatcherType;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import javax.servlet.ServletInputStream;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import javax.servlet.http.HttpUpgradeHandler;
+import javax.servlet.http.Part;
 
+import com.adobe.cq.social.forum.client.api.Forum;
+import com.adobe.cq.social.forum.client.api.Post;
 import com.adobe.cq.social.tally.TallyConstants;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.jackrabbit.api.security.user.Authorizable;
 import org.apache.jackrabbit.api.security.user.Group;
 import org.apache.jackrabbit.api.security.user.UserManager;
+import org.apache.sling.api.SlingHttpServletRequest;
+import org.apache.sling.api.request.RequestDispatcherOptions;
+import org.apache.sling.api.request.RequestParameter;
+import org.apache.sling.api.request.RequestParameterMap;
+import org.apache.sling.api.request.RequestPathInfo;
+import org.apache.sling.api.request.RequestProgressTracker;
 import org.apache.sling.api.resource.ModifyingResourceProvider;
 import org.apache.sling.api.resource.PersistenceException;
 import org.apache.sling.api.resource.Resource;
@@ -339,6 +368,9 @@ public class UGCImportHelper {
 
     public void importForumContent(final JsonParser jsonParser, final Resource resource,
         final ResourceResolver resolver) throws ServletException, IOException {
+        if (!resource.getResourceType().equals(Forum.RESOURCE_TYPE)) {
+            throw new IOException("Cannot import forum topic onto non-forum parent resource");
+        }
         if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
             jsonParser.nextToken(); // advance to first key in the object - should be the id value of the old post
             while (jsonParser.getCurrentToken().equals(JsonToken.FIELD_NAME)) {
@@ -405,9 +437,12 @@ public class UGCImportHelper {
 
         SocialResourceConfiguration config = socialUtils.getStorageConfig(resource);
         final String rootPath = config.getAsiPath();
-        resProvider =
-            SocialResourceUtils.getSocialResource(resource.getResourceResolver().getResource(rootPath))
-                .getResourceProvider();
+        if (null == resProvider) {
+            resProvider =
+                    SocialResourceUtils.getSocialResource(resource.getResourceResolver().getResource(rootPath))
+                            .getResourceProvider();
+            resProvider.setConfig(config);
+        }
         if (jsonParser.getCurrentToken().equals(JsonToken.START_ARRAY)) {
             extractTally(resource, jsonParser, resProvider, tallyOperationsService);
             jsonParser.nextToken(); // get the next token - either a start object token or an end array token
@@ -469,7 +504,10 @@ public class UGCImportHelper {
                             post =
                                 createPost(resource, author, properties, attachments,
                                     resolver.adaptTo(Session.class), operations);
-                            resProvider = SocialResourceUtils.getSocialResource(post).getResourceProvider();
+                            if (null == resProvider) {
+                                resProvider = SocialResourceUtils.getSocialResource(post).getResourceProvider();
+                                resProvider.setConfig(socialUtils.getStorageConfig(post));
+                            }
                         } catch (Exception e) {
                             throw new ServletException(e.getMessage(), e);
                         }
@@ -547,6 +585,7 @@ public class UGCImportHelper {
                             operations);
                     if (null == resProvider) {
                         resProvider = SocialResourceUtils.getSocialResource(post).getResourceProvider();
+                        resProvider.setConfig(socialUtils.getStorageConfig(post));
                     }
 // resProvider.commit(resolver);
                 } catch (Exception e) {
@@ -600,66 +639,65 @@ public class UGCImportHelper {
     protected void extractEvent(final JsonParser jsonParser, final Resource resource) throws IOException {
 
         String author = null;
-        final JSONObject requestParams = new JSONObject();
-        try {
+        Map<String, Object> eventParams = new HashMap<String, Object>();
+        jsonParser.nextToken();
+        JsonToken token = jsonParser.getCurrentToken();
+        while (token.equals(JsonToken.FIELD_NAME)) {
+            String field = jsonParser.getCurrentName();
             jsonParser.nextToken();
-            JsonToken token = jsonParser.getCurrentToken();
-            while (token.equals(JsonToken.FIELD_NAME)) {
-                String field = jsonParser.getCurrentName();
-                jsonParser.nextToken();
 
-                if (field.equals(PN_START) || field.equals(PN_END)) {
-                    final Long value = jsonParser.getValueAsLong();
-                    final Calendar calendar = new GregorianCalendar();
-                    calendar.setTimeInMillis(value);
-                    final Date date = calendar.getTime();
-                    final TimeZone tz = TimeZone.getTimeZone("UTC");
-                    // this is the ISO-8601 format expected by the CalendarOperations object
-                    final DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm+00:00");
-                    df.setTimeZone(tz);
-                    if (field.equals(PN_START)) {
-                        requestParams.put(CalendarRequestConstants.START_DATE, df.format(date));
-                    } else {
-                        requestParams.put(CalendarRequestConstants.END_DATE, df.format(date));
-                    }
-                } else if (field.equals(CalendarRequestConstants.TAGS)) {
-                    List<String> tags = new ArrayList<String>();
-                    if (jsonParser.getCurrentToken().equals(JsonToken.START_ARRAY)) {
-                        token = jsonParser.nextToken();
-                        while (!token.equals(JsonToken.END_ARRAY)) {
-                            tags.add(URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8"));
-                            token = jsonParser.nextToken();
-                        }
-                        requestParams.put(CalendarRequestConstants.TAGS, tags);
-                    } else {
-                        LOG.warn("Tags field came in without an array of tags in it - not processed");
-                        // do nothing, just log the error
-                    }
-                } else if (field.equals("jcr:createdBy")) {
-                    author = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
-                } else if (field.equals(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS)) {
-                    jsonParser.skipChildren(); // we do nothing with these because they're going to be put into json
+            if (field.equals(PN_START) || field.equals(PN_END)) {
+                final Long value = jsonParser.getValueAsLong();
+                final Calendar calendar = new GregorianCalendar();
+                calendar.setTimeInMillis(value);
+                final Date date = calendar.getTime();
+                final TimeZone tz = TimeZone.getTimeZone("UTC");
+                // this is the ISO-8601 format expected by the CalendarOperations object
+                final DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm+00:00");
+                df.setTimeZone(tz);
+                if (field.equals(PN_START)) {
+                    eventParams.put(CalendarRequestConstants.START_DATE, df.format(date));
                 } else {
-                    try {
-                        final String value = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
-                        requestParams.put(field, value);
-                    } catch (NullPointerException e) {
-                        throw e;
-                    }
+                    eventParams.put(CalendarRequestConstants.END_DATE, df.format(date));
                 }
-                token = jsonParser.nextToken();
+            } else if (field.equals(CalendarRequestConstants.TAGS)) {
+                List<String> tags = new ArrayList<String>();
+                if (jsonParser.getCurrentToken().equals(JsonToken.START_ARRAY)) {
+                    token = jsonParser.nextToken();
+                    while (!token.equals(JsonToken.END_ARRAY)) {
+                        tags.add(URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8"));
+                        token = jsonParser.nextToken();
+                    }
+                    eventParams.put(CalendarRequestConstants.TAGS, tags);
+                } else {
+                    LOG.warn("Tags field came in without an array of tags in it - not processed");
+                    // do nothing, just log the error
+                }
+            } else if (field.equals("jcr:createdBy")) {
+                author = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
+            } else if (field.equals("jcr:description")) {
+                eventParams.put("message", URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8"));
+            } else if (field.equals(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS)) {
+                jsonParser.skipChildren(); // we do nothing with these because they're going to be put into json
+            } else {
+                try {
+                    final String value = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
+                    eventParams.put(field, value);
+                } catch (NullPointerException e) {
+                    throw e;
+                }
             }
-        } catch (final JSONException e) {
-            throw new IOException("Unable to build a JSON object with the inputs provided", e);
+            token = jsonParser.nextToken();
         }
-        try {
-            Map<String, Object> eventParams = new HashMap<String, Object>();
-            eventParams.put("event", requestParams.toString());
-            calendarOperations.create(resource, author, eventParams, null, resource.getResourceResolver().adaptTo(Session.class));
-        } catch (final OperationException e) {
-            //probably caused by creating a folder that already exists. We ignore it, but still log the event.
-            LOG.info("There was an operation exception while creating an event");
-        }
+//        try {
+//            eventParams.put("sling:resourceType", com.adobe.cq.social.calendar.client.api.Calendar.RESOURCE_TYPE_EVENT);
+//            final Map<String, Object> props = fillCustomCalendarProperties(eventParams);
+//            calendarOperations.create(resource, author, props, Collections.<DataSource>emptyList(),
+//                    resource.getResourceResolver().adaptTo(Session.class));
+//        } catch (final OperationException e) {
+//            probably caused by creating a folder that already exists. We ignore it, but still log the event.
+//            LOG.info("There was an operation exception while creating an event");
+//        }
     }
 
     protected static List<DataSource> getAttachments(final JsonParser jsonParser) throws IOException {
