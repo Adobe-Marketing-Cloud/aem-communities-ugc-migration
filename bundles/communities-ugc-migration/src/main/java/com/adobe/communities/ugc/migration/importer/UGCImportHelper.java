@@ -11,97 +11,64 @@
  **************************************************************************/
 package com.adobe.communities.ugc.migration.importer;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.security.Principal;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Enumeration;
-import java.util.GregorianCalendar;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Random;
-import java.util.ResourceBundle;
-import java.util.TimeZone;
-
-import javax.activation.DataSource;
-import javax.annotation.Nonnull;
-import javax.jcr.Node;
-import javax.jcr.RepositoryException;
-import javax.jcr.Session;
-import javax.servlet.AsyncContext;
-import javax.servlet.DispatcherType;
-import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.ServletInputStream;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-import javax.servlet.http.HttpUpgradeHandler;
-import javax.servlet.http.Part;
-
-import com.adobe.cq.social.forum.client.api.Forum;
-import com.adobe.cq.social.forum.client.api.Post;
-import com.adobe.cq.social.tally.TallyConstants;
-import org.apache.commons.codec.binary.Base64;
-import org.apache.felix.scr.annotations.Reference;
-import org.apache.jackrabbit.api.security.user.Authorizable;
-import org.apache.jackrabbit.api.security.user.Group;
-import org.apache.jackrabbit.api.security.user.UserManager;
-import org.apache.sling.api.SlingHttpServletRequest;
-import org.apache.sling.api.request.RequestDispatcherOptions;
-import org.apache.sling.api.request.RequestParameter;
-import org.apache.sling.api.request.RequestParameterMap;
-import org.apache.sling.api.request.RequestPathInfo;
-import org.apache.sling.api.request.RequestProgressTracker;
-import org.apache.sling.api.resource.ModifyingResourceProvider;
-import org.apache.sling.api.resource.PersistenceException;
-import org.apache.sling.api.resource.Resource;
-import org.apache.sling.api.resource.ResourceResolver;
-import org.apache.sling.api.resource.ResourceResolverFactory;
-import org.apache.sling.commons.json.JSONException;
-import org.apache.sling.commons.json.JSONObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
 import com.adobe.cq.social.calendar.client.endpoints.CalendarOperations;
 import com.adobe.cq.social.calendar.client.endpoints.CalendarRequestConstants;
 import com.adobe.cq.social.commons.Comment;
 import com.adobe.cq.social.commons.FileDataSource;
 import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
+import com.adobe.cq.social.forum.client.api.Forum;
 import com.adobe.cq.social.forum.client.endpoints.ForumOperations;
+import com.adobe.cq.social.journal.client.api.Journal;
 import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
+import com.adobe.cq.social.qna.client.api.QnaPost;
 import com.adobe.cq.social.qna.client.endpoints.QnaForumOperations;
 import com.adobe.cq.social.scf.OperationException;
 import com.adobe.cq.social.srp.SocialResourceProvider;
 import com.adobe.cq.social.srp.config.SocialResourceConfiguration;
 import com.adobe.cq.social.tally.Tally;
+import com.adobe.cq.social.tally.TallyConstants;
 import com.adobe.cq.social.tally.Voting;
 import com.adobe.cq.social.tally.client.api.RatingSocialComponent;
 import com.adobe.cq.social.tally.client.api.VotingSocialComponent;
 import com.adobe.cq.social.tally.client.endpoints.TallyOperationsService;
 import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.adobe.cq.social.ugcbase.core.SocialResourceUtils;
-import com.adobe.granite.security.user.UserProperties;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.jackrabbit.api.security.user.Authorizable;
+import org.apache.jackrabbit.api.security.user.Group;
+import org.apache.jackrabbit.api.security.user.UserManager;
+import org.apache.sling.api.resource.ModifyingResourceProvider;
+import org.apache.sling.api.resource.PersistenceException;
+import org.apache.sling.api.resource.Resource;
+import org.apache.sling.api.resource.ResourceResolver;
+import org.apache.sling.api.resource.ResourceResolverFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.activation.DataSource;
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.servlet.ServletException;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URLDecoder;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.TimeZone;
 
 public class UGCImportHelper {
     private static final Logger LOG = LoggerFactory.getLogger(UGCImportHelper.class);
@@ -353,6 +320,9 @@ public class UGCImportHelper {
 
     public void importQnaContent(final JsonParser jsonParser, final Resource resource, final ResourceResolver resolver)
         throws ServletException, IOException {
+        if (!resource.getResourceType().equals(QnaPost.RESOURCE_TYPE)) {
+            throw new IOException("Cannot import qna topic onto non-qna parent resource");
+        }
         if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
             jsonParser.nextToken(); // advance to first key in the object - should be the id value of the old post
             while (jsonParser.getCurrentToken().equals(JsonToken.FIELD_NAME)) {
@@ -386,6 +356,10 @@ public class UGCImportHelper {
 
     public void importCommentsContent(final JsonParser jsonParser, final Resource resource,
         final ResourceResolver resolver) throws ServletException, IOException {
+        if (!resource.getResourceType()
+                .equals(com.adobe.cq.social.commons.comments.api.Comment.COMMENTCOLLECTION_RESOURCETYPE)) {
+            throw new IOException("Cannot import comment onto non-comment system parent resource");
+        }
         if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
             jsonParser.nextToken(); // advance to first key in the object - should be the id value of the old post
             while (jsonParser.getCurrentToken().equals(JsonToken.FIELD_NAME)) {
@@ -401,7 +375,9 @@ public class UGCImportHelper {
 
     public void importJournalContent(final JsonParser jsonParser, final Resource resource,
         final ResourceResolver resolver) throws IOException, ServletException {
-
+        if (!resource.getResourceType().equals(Journal.RESOURCE_TYPE)) {
+            throw new IOException("Cannot import journal entry onto non-journal parent resource");
+        }
         if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
             jsonParser.nextToken(); // advance to first key in the object - should be the id value of the old post
             while (jsonParser.getCurrentToken().equals(JsonToken.FIELD_NAME)) {
@@ -416,6 +392,9 @@ public class UGCImportHelper {
     }
 
     public void importCalendarContent(final JsonParser jsonParser, final Resource resource) throws IOException {
+        if (!resource.getResourceType().equals(com.adobe.cq.social.calendar.client.api.Calendar.RESOURCE_TYPE)) {
+            throw new IOException("Cannot import calendar event onto non-calendar parent resource");
+        }
         if (jsonParser.getCurrentToken().equals(JsonToken.START_ARRAY)) {
             jsonParser.nextToken(); // skip START_ARRAY here
         } else {
