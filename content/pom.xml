@@ -155,48 +155,6 @@
                             </resources>
                         </configuration>
                     </execution>
-                    <execution>
-                        <id>copy-jsps</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>copy-resources</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>${basedir}/target/${jsp.tmp.dir}</outputDirectory>
-                            <resources>
-                                <resource>
-                                    <directory>${basedir}/jcr_root</directory>
-                                    <includes>
-                                        <include>**/*.jsp</include>
-                                    </includes>
-                                </resource>
-                                <resource>
-                                    <directory>${basedir}/../../social-commons/content/jcr_root</directory>
-                                    <includes>
-                                        <include>libs/social/commons/commons.jsp</include>
-                                    </includes>
-                                </resource>
-                                <resource>
-                                    <directory>${basedir}/../../social-content/content/jcr_root</directory>
-                                    <includes>
-                                        <include>libs/social/security/social-security.jsp</include>
-                                    </includes>
-                                </resource>
-                                <resource>
-                                    <directory>${basedir}/../../foundation/content/jcr_root</directory>
-                                    <includes>
-                                        <include>libs/foundation/global.jsp</include>
-                                    </includes>
-                                </resource>
-                                <resource>
-                                    <directory>${basedir}/../../com.adobe.granite.ui.content/src/main/content/jcr_root</directory>
-                                    <includes>
-                                        <include>libs/granite/ui/global.jsp</include>
-                                    </includes>
-                                </resource>
-                            </resources>
-                        </configuration>
-                    </execution>
                 </executions>
             </plugin>
             <plugin>
