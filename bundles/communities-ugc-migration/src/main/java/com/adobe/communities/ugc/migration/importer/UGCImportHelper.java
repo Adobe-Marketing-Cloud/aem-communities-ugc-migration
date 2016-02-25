@@ -14,6 +14,7 @@ package com.adobe.communities.ugc.migration.importer;
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
 import com.adobe.cq.social.calendar.client.endpoints.CalendarOperations;
 import com.adobe.cq.social.calendar.client.endpoints.CalendarRequestConstants;
+import com.adobe.cq.social.calendar.CalendarConstants;
 import com.adobe.cq.social.commons.Comment;
 import com.adobe.cq.social.commons.FileDataSource;
 import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
@@ -62,6 +63,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -621,23 +623,22 @@ public class UGCImportHelper {
         Map<String, Object> eventParams = new HashMap<String, Object>();
         jsonParser.nextToken();
         JsonToken token = jsonParser.getCurrentToken();
+        List<DataSource> attachments = null;
         while (token.equals(JsonToken.FIELD_NAME)) {
             String field = jsonParser.getCurrentName();
             jsonParser.nextToken();
 
-            if (field.equals(PN_START) || field.equals(PN_END)) {
-                final Long value = jsonParser.getValueAsLong();
-                final Calendar calendar = new GregorianCalendar();
-                calendar.setTimeInMillis(value);
-                final Date date = calendar.getTime();
-                final TimeZone tz = TimeZone.getTimeZone("UTC");
-                // this is the ISO-8601 format expected by the CalendarOperations object
-                final DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm+00:00");
-                df.setTimeZone(tz);
-                if (field.equals(PN_START)) {
-                    eventParams.put(CalendarRequestConstants.START_DATE, df.format(date));
-                } else {
-                    eventParams.put(CalendarRequestConstants.END_DATE, df.format(date));
+            if(field.equals(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS)) {
+                jsonParser.nextToken(); // advance to first field name
+                while (!jsonParser.getCurrentToken().equals(JsonToken.END_ARRAY)) {
+                    final String timestampLabel = jsonParser.getValueAsString();
+                    if (eventParams.containsKey(timestampLabel)) {
+                        final Calendar calendar = new GregorianCalendar();
+                        calendar.setTimeInMillis(
+                                Long.parseLong((String)eventParams.get(timestampLabel)));
+                        eventParams.put(timestampLabel, calendar);
+                    }
+                    jsonParser.nextToken();
                 }
             } else if (field.equals(CalendarRequestConstants.TAGS)) {
                 List<String> tags = new ArrayList<String>();
@@ -654,29 +655,52 @@ public class UGCImportHelper {
                 }
             } else if (field.equals("jcr:createdBy")) {
                 author = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
-            } else if (field.equals("jcr:description")) {
-                eventParams.put("message", URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8"));
-            } else if (field.equals(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS)) {
-                jsonParser.skipChildren(); // we do nothing with these because they're going to be put into json
-            } else {
-                try {
-                    final String value = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
-                    eventParams.put(field, value);
-                } catch (NullPointerException e) {
-                    throw e;
+            } else if (field.equals(ContentTypeDefinitions.LABEL_ATTACHMENTS)) {
+                attachments = getAttachments(jsonParser);
+            } else if (field.equals(CalendarConstants.PN_COVER_IMAGE)) {
+                if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
+                    DataSource coverimage = getAttachment(jsonParser);
+                    if (null != coverimage) {
+                        eventParams.put(CalendarConstants.PN_COVER_IMAGE, coverimage);
+                    } else {
+                        LOG.warn("Cover image property did not have a valid attachment object");
+                    }
+                } else {
+                    LOG.error("Cover image property was not a json object");
+                    jsonParser.skipChildren();
                 }
+            } else {
+                final String value = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
+                eventParams.put(field, value);
             }
             token = jsonParser.nextToken();
         }
-//        try {
-//            eventParams.put("sling:resourceType", com.adobe.cq.social.calendar.client.api.Calendar.RESOURCE_TYPE_EVENT);
-//            final Map<String, Object> props = fillCustomCalendarProperties(eventParams);
-//            calendarOperations.create(resource, author, props, Collections.<DataSource>emptyList(),
-//                    resource.getResourceResolver().adaptTo(Session.class));
-//        } catch (final OperationException e) {
+        try {
+            eventParams.put("sling:resourceType", com.adobe.cq.social.calendar.client.api.Calendar.RESOURCE_TYPE_EVENT);
+            final Map<String, Object> props = fillCustomCalendarProperties(eventParams);
+            if (null == attachments) {
+                attachments = Collections.emptyList();
+            }
+            calendarOperations.create(resource, author, props, attachments,
+                    resource.getResourceResolver().adaptTo(Session.class));
+        } catch (final OperationException e) {
 //            probably caused by creating a folder that already exists. We ignore it, but still log the event.
-//            LOG.info("There was an operation exception while creating an event");
-//        }
+            LOG.info("There was an operation exception while creating an event: " + e.getMessage());
+        }
+    }
+
+    private Map<String, Object> fillCustomCalendarProperties(final Map<String, Object> props) {
+        final Map<String, String> relabels = new HashMap<String, String>();
+        relabels.put("location", "location_t");
+        relabels.put("subject",  "jcr:title");
+        relabels.put("jcr:description", "message");
+        for (final String key : relabels.keySet()) {
+            if (props.containsKey(key)) {
+                props.put(relabels.get(key), props.get(key));
+                props.remove(key);
+            }
+        }
+        return props;
     }
 
     protected static List<DataSource> getAttachments(final JsonParser jsonParser) throws IOException {
@@ -689,36 +713,41 @@ public class UGCImportHelper {
     protected static void getAttachments(final JsonParser jsonParser, final List attachments) throws IOException {
 
         JsonToken token = jsonParser.nextToken(); // skip START_ARRAY token
-        String filename;
-        String mimeType;
-        InputStream inputStream;
         while (token.equals(JsonToken.START_OBJECT)) {
-            filename = null;
-            mimeType = null;
-            inputStream = null;
-            byte[] databytes = null;
-            token = jsonParser.nextToken();
-            while (!token.equals(JsonToken.END_OBJECT)) {
-                final String label = jsonParser.getCurrentName();
-                jsonParser.nextToken();
-                if (label.equals("filename")) {
-                    filename = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
-                } else if (label.equals("jcr:mimeType")) {
-                    mimeType = jsonParser.getValueAsString();
-                } else if (label.equals("jcr:data")) {
-                    databytes = Base64.decodeBase64(jsonParser.getValueAsString());
-                    inputStream = new ByteArrayInputStream(databytes);
-                }
-                token = jsonParser.nextToken();
-            }
-            if (filename != null && mimeType != null && inputStream != null) {
-                attachments.add(new UGCImportHelper.AttachmentStruct(filename, inputStream, mimeType,
-                        databytes.length));
-            } else {
-                // log an error
-                LOG.error("We expected to import an attachment, but information was missing and nothing was imported");
+            DataSource attachment = getAttachment(jsonParser);
+            if (null != attachment) {
+                attachments.add(attachment);
             }
             token = jsonParser.nextToken();
+        }
+    }
+
+    protected static DataSource getAttachment(final JsonParser jsonParser) throws IOException {
+
+        String filename = null;
+        String mimeType = null;
+        InputStream inputStream = null;
+        byte[] databytes = null;
+        JsonToken token = jsonParser.nextToken();
+        while (!token.equals(JsonToken.END_OBJECT)) {
+            final String label = jsonParser.getCurrentName();
+            jsonParser.nextToken();
+            if (label.equals("filename")) {
+                filename = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
+            } else if (label.equals("jcr:mimeType")) {
+                mimeType = jsonParser.getValueAsString();
+            } else if (label.equals("jcr:data")) {
+                databytes = Base64.decodeBase64(jsonParser.getValueAsString());
+                inputStream = new ByteArrayInputStream(databytes);
+            }
+            token = jsonParser.nextToken();
+        }
+        if (filename != null && mimeType != null && inputStream != null) {
+            return new UGCImportHelper.AttachmentStruct(filename, inputStream, mimeType, databytes.length);
+        } else {
+            // log an error
+            LOG.error("We expected to import an attachment, but information was missing and nothing was imported");
+            return null;
         }
     }
 
