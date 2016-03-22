@@ -500,6 +500,7 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
         throws ServletException, IOException {
         final UGCImportHelper importHelper = new UGCImportHelper();
         JsonToken token1 = jsonParser.getCurrentToken();
+        importHelper.setSocialUtils(socialUtils);
         if (token1.equals(JsonToken.START_OBJECT)) {
             jsonParser.nextToken();
             if (jsonParser.getCurrentName().equals(ContentTypeDefinitions.LABEL_CONTENT_TYPE)) {
@@ -515,8 +516,8 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
                     importHelper.setCalendarOperations(calendarOperations);
                 } else if (contentType.equals(ContentTypeDefinitions.LABEL_JOURNAL)) {
                     importHelper.setJournalOperations(journalOperations);
-                } else if (contentType.equals(ContentTypeDefinitions.LABEL_TALLY)) {
-                    importHelper.setSocialUtils(socialUtils);
+//                } else if (contentType.equals(ContentTypeDefinitions.LABEL_TALLY)) {
+//                    importHelper.setSocialUtils(socialUtils);
                 }
                 importHelper.setTallyService(tallyOperationsService); // (everything potentially needs tally)
                 jsonParser.nextToken(); // content

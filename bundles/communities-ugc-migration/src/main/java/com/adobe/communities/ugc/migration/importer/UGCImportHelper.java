@@ -19,6 +19,7 @@ import com.adobe.cq.social.commons.Comment;
 import com.adobe.cq.social.commons.FileDataSource;
 import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
 import com.adobe.cq.social.forum.client.api.Forum;
+import com.adobe.cq.social.forum.client.api.Post;
 import com.adobe.cq.social.forum.client.endpoints.ForumOperations;
 import com.adobe.cq.social.journal.client.api.Journal;
 import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
@@ -42,6 +43,7 @@ import org.apache.felix.scr.annotations.Reference;
 import org.apache.jackrabbit.api.security.user.Authorizable;
 import org.apache.jackrabbit.api.security.user.Group;
 import org.apache.jackrabbit.api.security.user.UserManager;
+import org.apache.sling.api.resource.ModifiableValueMap;
 import org.apache.sling.api.resource.ModifyingResourceProvider;
 import org.apache.sling.api.resource.PersistenceException;
 import org.apache.sling.api.resource.Resource;
@@ -54,6 +56,7 @@ import javax.activation.DataSource;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.servlet.ServletException;
+import javax.xml.crypto.Data;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -446,6 +449,7 @@ public class UGCImportHelper {
             jsonParser.nextToken();
             String author = null;
             List<DataSource> attachments = new ArrayList<DataSource>();
+            boolean isClosed = false;
             while (!jsonParser.getCurrentToken().equals(JsonToken.END_OBJECT)) {
                 final String label = jsonParser.getCurrentName();
                 JsonToken token = jsonParser.nextToken();
@@ -481,6 +485,12 @@ public class UGCImportHelper {
                     // replies and sub-nodes ALWAYS come after all other properties and attachments have been listed,
                     // so we can create the post now if we haven't already, and then dive in
                     if (post == null) {
+                        if (properties.containsKey("isClosed")) {
+                            if ((Boolean)properties.get("isClosed")) {
+                                isClosed = true;
+                                properties.put("isClosed", false);
+                            }
+                        }
                         try {
                             post =
                                 createPost(resource, author, properties, attachments,
@@ -561,6 +571,12 @@ public class UGCImportHelper {
             }
             if (post == null) {
                 try {
+                    if (properties.containsKey("isClosed")) {
+                        if ((Boolean)properties.get("isClosed")) {
+                            isClosed = true;
+                            properties.put("isClosed", false);
+                        }
+                    }
                     post =
                         createPost(resource, author, properties, attachments, resolver.adaptTo(Session.class),
                             operations);
@@ -572,6 +588,12 @@ public class UGCImportHelper {
                 } catch (Exception e) {
                     throw new ServletException(e.getMessage(), e);
                 }
+            }
+            if (isClosed) {
+                // todo - this DOES NOT WORK in MSRP - figure out why and fix it
+                final ModifiableValueMap map = resolver.getResource(post.getPath()).adaptTo(ModifiableValueMap.class);
+                map.put("isClosed", true);
+                resolver.commit();
             }
         } else {
             throw new IOException("Improperly formed JSON - expected an OBJECT_START token, but got "

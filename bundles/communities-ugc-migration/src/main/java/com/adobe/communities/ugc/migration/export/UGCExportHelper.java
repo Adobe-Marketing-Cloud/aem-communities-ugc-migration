@@ -11,24 +11,43 @@
  **************************************************************************/
 package com.adobe.communities.ugc.migration.export;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.Writer;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
-import java.util.Map;
-
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
+import com.adobe.cq.social.commons.Comment;
+import com.adobe.cq.social.srp.SocialResourceProvider;
+import com.adobe.cq.social.tally.Tally;
+import com.adobe.cq.social.tally.Voting;
+import com.adobe.cq.social.tally.client.api.Response;
+import com.adobe.cq.social.tally.client.api.Vote;
+import com.adobe.cq.social.ugcbase.SocialUtils;
+import com.adobe.cq.social.ugcbase.core.SocialResourceUtils;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.sling.api.resource.Resource;
+import org.apache.sling.api.resource.ResourceResolver;
 import org.apache.sling.api.resource.ValueMap;
 import org.apache.sling.commons.json.JSONArray;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.io.JSONWriter;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.io.Writer;
+import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.GregorianCalendar;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
 public class UGCExportHelper {
 
     private final static int DATA_ENCODING_CHUNK_SIZE = 1440;
+
+    public static SocialResourceProvider srp;
 
     public static void extractSubNode(JSONWriter object, final Resource node) throws JSONException {
         final ValueMap childVm = node.getValueMap();
@@ -95,26 +114,20 @@ public class UGCExportHelper {
     }
     public static void extractAttachment(final Writer ioWriter, final JSONWriter writer, final Resource node)
             throws JSONException {
-        Resource contentNode = node.getChild("jcr:content");
-        if (contentNode == null) {
+        ValueMap content = node.getValueMap();
+        if (!content.containsKey("mimetype")) {
             writer.key(ContentTypeDefinitions.LABEL_ERROR);
-            writer.value("provided resource was not an attachment - no content node");
-            return;
-        }
-        ValueMap content = contentNode.getValueMap();
-        if (!content.containsKey("jcr:mimeType") || !content.containsKey("jcr:data")) {
-            writer.key(ContentTypeDefinitions.LABEL_ERROR);
-            writer.value("provided resource was not an attachment - content node contained no attachment data");
+            writer.value("provided resource was not an attachment - content node contained no mime type data");
             return;
         }
         writer.key("filename");
         writer.value(node.getName());
         writer.key("jcr:mimeType");
-        writer.value(content.get("jcr:mimeType"));
+        writer.value(content.get("mimetype"));
 
         try {
             ioWriter.write(",\"jcr:data\":\"");
-            final InputStream data = (InputStream) content.get("jcr:data");
+            final InputStream data = srp.getAttachmentInputStream(node.getResourceResolver(), node.getPath());
             byte[] byteData = new byte[DATA_ENCODING_CHUNK_SIZE];
             int read = 0;
             while (read != -1) {
@@ -134,6 +147,205 @@ public class UGCExportHelper {
         } catch (IOException e) {
             writer.key(ContentTypeDefinitions.LABEL_ERROR);
             writer.value("IOException while getting attachment: " + e.getMessage());
+        }
+    }
+    public static void extractComment(final JSONWriter writer, final Comment post, final ResourceResolver resolver,
+                      final Writer responseWriter, final SocialUtils socialUtils) throws JSONException, IOException {
+
+        final ValueMap vm = post.getProperties();
+        final JSONArray timestampFields = new JSONArray();
+        List<String> attachments = null;
+        for (final Map.Entry<String, Object> prop : vm.entrySet()) {
+            final Object value = prop.getValue();
+            if (value instanceof String[]) {
+                if (prop.getKey().equals("social:attachments")) {
+                    attachments = Arrays.asList((String[])value);
+                } else {
+                    final JSONArray list = new JSONArray();
+                    for (String v : (String[]) value) {
+                        list.put(v);
+                    }
+                    writer.key(prop.getKey());
+                    writer.value(list);
+                }
+            } else if (value instanceof GregorianCalendar) {
+                timestampFields.put(prop.getKey());
+                writer.key(prop.getKey());
+                writer.value(((Calendar) value).getTimeInMillis());
+            } else if (prop.getKey().equals("sling:resourceType")) {
+                writer.key(prop.getKey());
+                writer.value(Comment.RESOURCE_TYPE);
+            } else if (prop.getKey().startsWith("voting_")) {
+                continue; //we'll reconstruct this value automatically when we import votes
+            } else {
+                writer.key(prop.getKey());
+                try {
+                    writer.value(URLEncoder.encode(prop.getValue().toString(), "UTF-8"));
+                } catch (final UnsupportedEncodingException e) {
+                    throw new JSONException("Unsupported encoding (UTF-8) for resource at " + post.getPath(), e);
+                }
+            }
+        }
+        if (timestampFields.length() > 0) {
+            writer.key(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS);
+            writer.value(timestampFields);
+        }
+        final Resource thisResource = resolver.getResource(post.getPath());
+        if (srp == null) {
+            srp = SocialResourceUtils.getSocialResource(thisResource).getResourceProvider();
+            srp.setConfig(socialUtils.getStorageConfig(thisResource));
+        }
+        if (attachments != null) {
+            writer.key(ContentTypeDefinitions.LABEL_ATTACHMENTS);
+            final JSONWriter attachmentsWriter = writer.array();
+            for (final String attachment : attachments) {
+                UGCExportHelper.extractAttachment(responseWriter, attachmentsWriter.object(), resolver.getResource(attachment));
+                attachmentsWriter.endObject();
+            }
+            writer.endArray();
+        }
+        final Iterable<Resource> children = thisResource.getChildren();
+        for (final Resource child : children) {
+            if (child.isResourceType("social/tally/components/hbs/voting")) {
+                writer.key(ContentTypeDefinitions.LABEL_TALLY);
+                final JSONWriter voteObjects = writer.array();
+                UGCExportHelper.extractTally(voteObjects, child, "Voting");
+                writer.endArray();
+            } else if (child.getName().equals("translation")) {
+                extractTranslation(writer, child);
+            }
+        }
+        final Iterator<Comment> posts = post.getComments();
+        if (posts.hasNext()) {
+            JSONWriter replyWriter = null;
+            while (posts.hasNext()) {
+                Comment childPost = posts.next();
+                if(!childPost.getResource().isResourceType("social/commons/components/comments/comment")) {
+                    continue;
+                } else if (null == replyWriter) {
+                    writer.key(ContentTypeDefinitions.LABEL_REPLIES);
+                    replyWriter = writer.object();
+                }
+                replyWriter.key(childPost.getId());
+                extractComment(replyWriter.object(), childPost, resolver, responseWriter, socialUtils);
+                replyWriter.endObject();
+            }
+            if (null != replyWriter) {
+                writer.endObject();
+            }
+        }
+    }
+
+
+    public static void extractTally(final JSONWriter responseArray, final Resource rootNode, final String tallyType)
+            throws JSONException, UnsupportedEncodingException {
+
+        final Iterator<Resource> responses =
+                srp.listChildren(rootNode.getPath(), rootNode.getResourceResolver(), 0, -1,
+                        Collections.<Map.Entry<String, Boolean>>emptyList());
+        String tallyResourceType;
+        if (tallyType.equals("Voting")) {
+            tallyResourceType = "social/tally/components/hbs/voting";
+        } else {
+            tallyResourceType = "social/tally/components/hbs/tally";
+        }
+        if (null != responses) {
+            while (responses.hasNext()) {
+                final Resource response = responses.next();
+                if (!response.isResourceType(tallyResourceType)) {
+                    continue;
+                }
+                final ValueMap properties = response.adaptTo(ValueMap.class);
+                final String userIdentifier = properties.get("userIdentifier", "");
+                final String responseValue = properties.get("response", "");
+                final JSONWriter voteObject = responseArray.object();
+                voteObject.key("timestamp");
+                voteObject.value(properties.get("added", GregorianCalendar.getInstance().getTimeInMillis()));
+                voteObject.key("response");
+                voteObject.value(URLEncoder.encode(responseValue, "UTF-8"));
+                voteObject.key("userIdentifier");
+                voteObject.value(URLEncoder.encode(userIdentifier, "UTF-8"));
+                if (tallyType != null) {
+                    // for the purposes of this export, tallyType is fixed
+                    voteObject.key("tallyType");
+                    voteObject.value(tallyType);
+                }
+                voteObject.endObject();
+            }
+        }
+    }
+    public static void extractTranslation(final JSONWriter writer, final Resource translationResource)
+            throws JSONException, IOException {
+
+        final Iterable<Resource> translations = translationResource.getChildren();
+        final ValueMap props = translationResource.adaptTo(ValueMap.class);
+        String languageLabel = (String) props.get("mtlanguage");
+        if (null == languageLabel) {
+            languageLabel = (String) props.get("mtlanguage");
+            if (null == languageLabel) {
+                return;
+            }
+        }
+        writer.key(ContentTypeDefinitions.LABEL_TRANSLATION);
+        writer.object();
+        writer.key("mtlanguage");
+        writer.value(languageLabel);
+        writer.key("jcr:created");
+        Object createdDate = props.get("added");
+        if (null != createdDate && createdDate instanceof Calendar) {
+            writer.value(((Calendar)createdDate).getTimeInMillis());
+        } else {
+            writer.value((new GregorianCalendar()).getTimeInMillis());
+        }
+        if (translations.iterator().hasNext()) {
+            writer.key(ContentTypeDefinitions.LABEL_TRANSLATIONS);
+            final JSONWriter translationObjects = writer.object();
+            UGCExportHelper.extractTranslations(translationObjects, translations);
+            writer.endObject();
+        }
+        writer.endObject();
+    }
+    public static void extractTranslations(final JSONWriter writer, final Iterable<Resource> translations)
+            throws JSONException, IOException {
+        for (final Resource translation : translations) {
+            final JSONArray timestampFields = new JSONArray();
+            final ValueMap vm = translation.adaptTo(ValueMap.class);
+            if (!vm.containsKey("jcr:description")) {
+                continue; //if there's no translation, we're done here
+            }
+            String languageLabel = translation.getName();
+            writer.key(languageLabel);
+
+            JSONWriter translationObject = writer.object();
+            translationObject.key("jcr:description");
+            translationObject.value(URLEncoder.encode((String) vm.get("jcr:description"), "UTF-8"));
+            if (vm.containsKey("jcr:createdBy")) {
+                translationObject.key("jcr:createdBy");
+                translationObject.value(URLEncoder.encode((String) vm.get("jcr:createdBy"), "UTF-8"));
+            }
+            if (vm.containsKey("jcr:title")) {
+                translationObject.key("jcr:title");
+                translationObject.value(URLEncoder.encode((String) vm.get("jcr:title"), "UTF-8"));
+            }
+            if (vm.containsKey("postEdited")) {
+                translationObject.key("postEdited");
+                translationObject.value(vm.get("postEdited"));
+            }
+            if (vm.containsKey("translationDate")) {
+                translationObject.key("translationDate");
+                translationObject.value(((Calendar) vm.get("translationDate")).getTimeInMillis());
+                timestampFields.put("translationDate");
+            }
+            if (vm.containsKey("jcr:created")) {
+                translationObject.key("jcr:created");
+                translationObject.value(((Calendar) vm.get("jcr:created")).getTimeInMillis());
+                timestampFields.put("jcr:created");
+            }
+            if (timestampFields.length() > 0) {
+                translationObject.key(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS);
+                translationObject.value(timestampFields);
+            }
+            translationObject.endObject();
         }
     }
 }

@@ -112,6 +112,9 @@ public class ScoresImportServlet extends SlingAllMethodsServlet {
         for (final Resource scoreNode : scoreNodes) {
             ValueMap vm = scoreNode.adaptTo(ValueMap.class);
             final Resource content = scoreNode.getChild("jcr:content");
+            if (null == content) {
+                continue;
+            }
             if (content.isResourceType("social/scoring/components/scoringpage")) {
                 final ValueMap valueMap = content.adaptTo(ValueMap.class);
                 if (valueMap.containsKey("sname")) {
