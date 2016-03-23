@@ -234,13 +234,6 @@
             <version>2.2.2</version>
         </dependency>
 
-        <!-- CQ Communities -->
-        <dependency>
-            <groupId>com.adobe.cq.social</groupId>
-            <artifactId>cq-social-calendar</artifactId>
-            <version>1.3.7</version>
-        </dependency>
-
     </dependencies>
     <repositories>
         <repository>

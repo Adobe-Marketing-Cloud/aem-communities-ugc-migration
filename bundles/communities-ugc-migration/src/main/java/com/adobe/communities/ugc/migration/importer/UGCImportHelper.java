@@ -690,15 +690,6 @@ public class UGCImportHelper {
             }
             token = jsonParser.nextToken();
         }
-//        try {
-//            eventParams.put("sling:resourceType", com.adobe.cq.social.calendar.client.api.Calendar.RESOURCE_TYPE_EVENT);
-//            final Map<String, Object> props = fillCustomCalendarProperties(eventParams);
-//            calendarOperations.create(resource, author, props, Collections.<DataSource>emptyList(),
-//                    resource.getResourceResolver().adaptTo(Session.class));
-//        } catch (final OperationException e) {
-//            probably caused by creating a folder that already exists. We ignore it, but still log the event.
-//            LOG.info("There was an operation exception while creating an event");
-//        }
     }
 
     protected static List<DataSource> getAttachments(final JsonParser jsonParser) throws IOException {
