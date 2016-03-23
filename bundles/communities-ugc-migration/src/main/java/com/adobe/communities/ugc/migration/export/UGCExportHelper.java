@@ -114,6 +114,12 @@ public class UGCExportHelper {
     }
     public static void extractAttachment(final Writer ioWriter, final JSONWriter writer, final Resource node)
             throws JSONException {
+        Resource contentNode = node.getChild("jcr:content");
+        if (contentNode == null) {
+            writer.key(ContentTypeDefinitions.LABEL_ERROR);
+            writer.value("provided resource was not an attachment - no content node beneath " + node.getPath());
+            return;
+        }
         ValueMap content = node.getValueMap();
         if (!content.containsKey("mimetype")) {
             writer.key(ContentTypeDefinitions.LABEL_ERROR);
@@ -127,7 +133,7 @@ public class UGCExportHelper {
 
         try {
             ioWriter.write(",\"jcr:data\":\"");
-            final InputStream data = srp.getAttachmentInputStream(node.getResourceResolver(), node.getPath());
+            final InputStream data = (InputStream) contentNode.adaptTo(ValueMap.class).get("jcr:data");
             byte[] byteData = new byte[DATA_ENCODING_CHUNK_SIZE];
             int read = 0;
             while (read != -1) {
@@ -252,10 +258,10 @@ public class UGCExportHelper {
         if (null != responses) {
             while (responses.hasNext()) {
                 final Resource response = responses.next();
-                if (!response.isResourceType(tallyResourceType)) {
+                final ValueMap properties = response.adaptTo(ValueMap.class);
+                if (!(properties.get("social:baseType")).equals(tallyResourceType)) {
                     continue;
                 }
-                final ValueMap properties = response.adaptTo(ValueMap.class);
                 final String userIdentifier = properties.get("userIdentifier", "");
                 final String responseValue = properties.get("response", "");
                 final JSONWriter voteObject = responseArray.object();
