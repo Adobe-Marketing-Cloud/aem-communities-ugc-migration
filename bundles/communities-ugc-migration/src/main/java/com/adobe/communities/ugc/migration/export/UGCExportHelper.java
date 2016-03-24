@@ -14,10 +14,6 @@ package com.adobe.communities.ugc.migration.export;
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
 import com.adobe.cq.social.commons.Comment;
 import com.adobe.cq.social.srp.SocialResourceProvider;
-import com.adobe.cq.social.tally.Tally;
-import com.adobe.cq.social.tally.Voting;
-import com.adobe.cq.social.tally.client.api.Response;
-import com.adobe.cq.social.tally.client.api.Vote;
 import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.adobe.cq.social.ugcbase.core.SocialResourceUtils;
 import org.apache.commons.codec.binary.Base64;
@@ -33,10 +29,8 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
 import java.net.URLEncoder;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.GregorianCalendar;
 import java.util.Iterator;
@@ -114,11 +108,19 @@ public class UGCExportHelper {
     }
     public static void extractAttachment(final Writer ioWriter, final JSONWriter writer, final Resource node)
             throws JSONException {
-        Resource contentNode = node.getChild("jcr:content");
-        if (contentNode == null) {
-            writer.key(ContentTypeDefinitions.LABEL_ERROR);
-            writer.value("provided resource was not an attachment - no content node beneath " + node.getPath());
-            return;
+        InputStream data = node.adaptTo(InputStream.class);
+        if (data == null) {
+            try {
+                data = srp.getAttachmentInputStream(node.getResourceResolver(), node.getPath());
+            } catch (final IOException e) {
+                writer.key(ContentTypeDefinitions.LABEL_ERROR);
+                writer.value("provided resource was not an attachment - no content node beneath " + node.getPath());
+                return;
+            } catch (final Exception e) {
+                writer.key(ContentTypeDefinitions.LABEL_ERROR);
+                writer.value(e.getMessage());
+                return;
+            }
         }
         ValueMap content = node.getValueMap();
         if (!content.containsKey("mimetype")) {
@@ -133,7 +135,6 @@ public class UGCExportHelper {
 
         try {
             ioWriter.write(",\"jcr:data\":\"");
-            final InputStream data = (InputStream) contentNode.adaptTo(ValueMap.class).get("jcr:data");
             byte[] byteData = new byte[DATA_ENCODING_CHUNK_SIZE];
             int read = 0;
             while (read != -1) {
