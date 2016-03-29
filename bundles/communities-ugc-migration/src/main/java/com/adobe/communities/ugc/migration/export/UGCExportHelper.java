@@ -260,38 +260,37 @@ public class UGCExportHelper {
     public static void extractTally(final JSONWriter responseArray, final Resource rootNode, final String tallyType)
             throws JSONException, UnsupportedEncodingException {
 
-        final Iterator<Resource> responses =
-                srp.listChildren(rootNode.getPath(), rootNode.getResourceResolver(), 0, -1,
-                        Collections.<Map.Entry<String, Boolean>>emptyList());
+        final Iterable<Resource> responses = rootNode.getChildren();
         String tallyResourceType;
         if (tallyType.equals("Voting")) {
             tallyResourceType = "social/tally/components/hbs/voting";
         } else {
             tallyResourceType = "social/tally/components/hbs/tally";
         }
-        if (null != responses) {
-            while (responses.hasNext()) {
-                final Resource response = responses.next();
-                final ValueMap properties = response.adaptTo(ValueMap.class);
-                if (!(properties.get("social:baseType")).equals(tallyResourceType)) {
-                    continue;
-                }
-                final String userIdentifier = properties.get("userIdentifier", "");
-                final String responseValue = properties.get("response", "");
-                final JSONWriter voteObject = responseArray.object();
-                voteObject.key("timestamp");
-                voteObject.value(properties.get("added", GregorianCalendar.getInstance().getTimeInMillis()));
-                voteObject.key("response");
-                voteObject.value(URLEncoder.encode(responseValue, "UTF-8"));
-                voteObject.key("userIdentifier");
-                voteObject.value(URLEncoder.encode(userIdentifier, "UTF-8"));
-                if (tallyType != null) {
-                    // for the purposes of this export, tallyType is fixed
-                    voteObject.key("tallyType");
-                    voteObject.value(tallyType);
-                }
-                voteObject.endObject();
+        for (final Resource response : responses) {
+            final ValueMap properties = response.adaptTo(ValueMap.class);
+            if (!(properties.get("social:baseType")).equals(tallyResourceType)) {
+                continue;
             }
+            final String userIdentifier = properties.get("userIdentifier", "");
+            final String responseValue = properties.get("response", "");
+            final JSONWriter voteObject = responseArray.object();
+            voteObject.key("timestamp");
+            if (properties.get("added") instanceof Calendar) {
+                voteObject.value(((Calendar) properties.get("added")).getTimeInMillis());
+            } else {
+                voteObject.value(properties.get("added", GregorianCalendar.getInstance().getTimeInMillis()));
+            }
+            voteObject.key("response");
+            voteObject.value(URLEncoder.encode(responseValue, "UTF-8"));
+            voteObject.key("userIdentifier");
+            voteObject.value(URLEncoder.encode(userIdentifier, "UTF-8"));
+            if (tallyType != null) {
+                // for the purposes of this export, tallyType is fixed
+                voteObject.key("tallyType");
+                voteObject.value(tallyType);
+            }
+            voteObject.endObject();
         }
     }
     public static void extractTranslation(final JSONWriter writer, final Resource translationResource)
@@ -369,32 +368,32 @@ public class UGCExportHelper {
         }
     }
     public static void extractFlags(final JSONWriter responseArray, final Resource rootNode) throws JSONException, IOException {
-        final Iterator<Resource> responses =
-                srp.listChildren(rootNode.getPath(), rootNode.getResourceResolver(), 0, -1,
-                        Collections.<Map.Entry<String, Boolean>>emptyList());
-        if (null != responses) {
-            while (responses.hasNext()) {
-                final Resource response = responses.next();
-                final ValueMap properties = response.adaptTo(ValueMap.class);
-                final String userIdentifier = properties.get("userIdentifier", "");
-                final String responseValue = properties.get("response", "");
-                final String author_name = properties.get("author_display_name", "");
-                final String flag_reason = properties.get("social:flagReason", "");
-                final JSONWriter flagObject = responseArray.object();
-                flagObject.key("timestamp");
+        final Iterable<Resource> responses = rootNode.getChildren();
+
+        for (final Resource response : responses) {
+            final ValueMap properties = response.adaptTo(ValueMap.class);
+            final String userIdentifier = properties.get("userIdentifier", "");
+            final String responseValue = properties.get("response", "");
+            final String author_name = properties.get("author_display_name", "");
+            final String flag_reason = properties.get("social:flagReason", "");
+            final JSONWriter flagObject = responseArray.object();
+            flagObject.key("timestamp");
+            if (properties.get("added") instanceof Calendar) {
+                flagObject.value(((Calendar) properties.get("added")).getTimeInMillis());
+            } else {
                 flagObject.value(properties.get("added", GregorianCalendar.getInstance().getTimeInMillis()));
-                flagObject.key("response");
-                flagObject.value(URLEncoder.encode(responseValue, "UTF-8"));
-                flagObject.key("author_username");
-                flagObject.value(URLEncoder.encode(userIdentifier, "UTF-8"));
-                if (!"".equals(author_name)) {
-                    flagObject.key("author_display_name");
-                    flagObject.value(URLEncoder.encode(author_name, "UTF-8"));
-                }
-                flagObject.key("social:flagReason");
-                flagObject.value(URLEncoder.encode(flag_reason, "UTF-8"));
-                flagObject.endObject();
             }
+            flagObject.key("response");
+            flagObject.value(URLEncoder.encode(responseValue, "UTF-8"));
+            flagObject.key("author_username");
+            flagObject.value(URLEncoder.encode(userIdentifier, "UTF-8"));
+            if (!"".equals(author_name)) {
+                flagObject.key("author_display_name");
+                flagObject.value(URLEncoder.encode(author_name, "UTF-8"));
+            }
+            flagObject.key("social:flagReason");
+            flagObject.value(URLEncoder.encode(flag_reason, "UTF-8"));
+            flagObject.endObject();
         }
     }
 }
