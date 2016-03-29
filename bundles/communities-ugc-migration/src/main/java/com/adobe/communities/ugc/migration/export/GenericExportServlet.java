@@ -134,30 +134,34 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
         writer.setTidy(true);
         try {
             if (rootNode.isResourceType(VotingSocialComponent.VOTING_RESOURCE_TYPE)) {
-                zip.putNextEntry(new ZipEntry(entryName));
-                final JSONWriter tallyNode = writer.object();
-                tallyNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
-                tallyNode.value(ContentTypeDefinitions.LABEL_TALLY);
-                tallyNode.key(ContentTypeDefinitions.LABEL_CONTENT);
-                final JSONWriter responseArray = tallyNode.array();
-                UGCExportHelper.extractTally(responseArray, rootNode, "Voting");
-                tallyNode.endArray();
-                writer.endObject();
-                responseWriter.flush();
-                zip.closeEntry();
+                if (rootNode.hasChildren()) {
+                    zip.putNextEntry(new ZipEntry(entryName));
+                    final JSONWriter tallyNode = writer.object();
+                    tallyNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
+                    tallyNode.value(ContentTypeDefinitions.LABEL_TALLY);
+                    tallyNode.key(ContentTypeDefinitions.LABEL_CONTENT);
+                    final JSONWriter responseArray = tallyNode.array();
+                    UGCExportHelper.extractTally(responseArray, rootNode, "Voting");
+                    tallyNode.endArray();
+                    writer.endObject();
+                    responseWriter.flush();
+                    zip.closeEntry();
+                }
             } else
             if (rootNode.isResourceType(RatingSocialComponent.RATING_RESOURCE_TYPE)) {
-                zip.putNextEntry(new ZipEntry(entryName));
-                final JSONWriter tallyNode = writer.object();
-                tallyNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
-                tallyNode.value(ContentTypeDefinitions.LABEL_TALLY);
-                tallyNode.key(ContentTypeDefinitions.LABEL_CONTENT);
-                final JSONWriter responseArray = tallyNode.array();
-                UGCExportHelper.extractTally(responseArray, rootNode, "Rating");
-                tallyNode.endArray();
-                writer.endObject();
-                responseWriter.flush();
-                zip.closeEntry();
+                if (rootNode.hasChildren()) {
+                    zip.putNextEntry(new ZipEntry(entryName));
+                    final JSONWriter tallyNode = writer.object();
+                    tallyNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
+                    tallyNode.value(ContentTypeDefinitions.LABEL_TALLY);
+                    tallyNode.key(ContentTypeDefinitions.LABEL_CONTENT);
+                    final JSONWriter responseArray = tallyNode.array();
+                    UGCExportHelper.extractTally(responseArray, rootNode, "Rating");
+                    tallyNode.endArray();
+                    writer.endObject();
+                    responseWriter.flush();
+                    zip.closeEntry();
+                }
             } else
             if (rootNode.isResourceType(Comment.COMMENTCOLLECTION_RESOURCETYPE)) {
                 final CommentSystem commentSystem = rootNode.adaptTo(CommentSystem.class);

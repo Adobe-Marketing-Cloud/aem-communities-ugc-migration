@@ -162,6 +162,7 @@ public class UGCExportHelper {
         final ValueMap vm = post.getProperties();
         final JSONArray timestampFields = new JSONArray();
         List<String> attachments = null;
+        Integer flagAllowCount = -1;
         for (final Map.Entry<String, Object> prop : vm.entrySet()) {
             final Object value = prop.getValue();
             if (value instanceof String[]) {
@@ -184,6 +185,8 @@ public class UGCExportHelper {
                 writer.value(Comment.RESOURCE_TYPE);
             } else if (prop.getKey().startsWith("voting_")) {
                 continue; //we'll reconstruct this value automatically when we import votes
+            } else if (prop.getKey().equals(Comment.PROP_FLAG_ALLOW_COUNT)) {
+                flagAllowCount = (Integer) value;
             } else {
                 writer.key(prop.getKey());
                 try {
@@ -213,13 +216,23 @@ public class UGCExportHelper {
         }
         final Iterable<Resource> children = thisResource.getChildren();
         for (final Resource child : children) {
+             // check for votes, flags, or translations
             if (child.isResourceType("social/tally/components/hbs/voting")) {
+                if (!child.hasChildren()) continue;
                 writer.key(ContentTypeDefinitions.LABEL_TALLY);
                 final JSONWriter voteObjects = writer.array();
                 UGCExportHelper.extractTally(voteObjects, child, "Voting");
                 writer.endArray();
             } else if (child.getName().equals("translation")) {
+                if (!child.hasChildren()) continue;
                 extractTranslation(writer, child);
+            } else if (child.isResourceType("social/tally/components/voting")) {
+                if (!child.hasChildren() || !child.getPath().endsWith(flagAllowCount.toString())) continue;
+                // this resource type is used for flagging
+                writer.key(ContentTypeDefinitions.LABEL_FLAGS);
+                final JSONWriter flagObjects = writer.array();
+                UGCExportHelper.extractFlags(flagObjects, child);
+                writer.endArray();
             }
         }
         final Iterator<Comment> posts = post.getComments();
@@ -353,6 +366,35 @@ public class UGCExportHelper {
                 translationObject.value(timestampFields);
             }
             translationObject.endObject();
+        }
+    }
+    public static void extractFlags(final JSONWriter responseArray, final Resource rootNode) throws JSONException, IOException {
+        final Iterator<Resource> responses =
+                srp.listChildren(rootNode.getPath(), rootNode.getResourceResolver(), 0, -1,
+                        Collections.<Map.Entry<String, Boolean>>emptyList());
+        if (null != responses) {
+            while (responses.hasNext()) {
+                final Resource response = responses.next();
+                final ValueMap properties = response.adaptTo(ValueMap.class);
+                final String userIdentifier = properties.get("userIdentifier", "");
+                final String responseValue = properties.get("response", "");
+                final String author_name = properties.get("author_display_name", "");
+                final String flag_reason = properties.get("social:flagReason", "");
+                final JSONWriter flagObject = responseArray.object();
+                flagObject.key("timestamp");
+                flagObject.value(properties.get("added", GregorianCalendar.getInstance().getTimeInMillis()));
+                flagObject.key("response");
+                flagObject.value(URLEncoder.encode(responseValue, "UTF-8"));
+                flagObject.key("author_username");
+                flagObject.value(URLEncoder.encode(userIdentifier, "UTF-8"));
+                if (!"".equals(author_name)) {
+                    flagObject.key("author_display_name");
+                    flagObject.value(URLEncoder.encode(author_name, "UTF-8"));
+                }
+                flagObject.key("social:flagReason");
+                flagObject.value(URLEncoder.encode(flag_reason, "UTF-8"));
+                flagObject.endObject();
+            }
         }
     }
 }
