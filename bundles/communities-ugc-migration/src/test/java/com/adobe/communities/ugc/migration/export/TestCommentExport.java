@@ -5,6 +5,7 @@ import com.adobe.cq.social.srp.SocialResource;
 import com.adobe.cq.social.srp.SocialResourceProvider;
 import com.adobe.cq.social.ugcbase.SocialUtils;
 import junit.framework.Assert;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
 import org.apache.sling.api.resource.ValueMap;
@@ -18,7 +19,13 @@ import org.junit.Test;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringWriter;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -254,5 +261,50 @@ public class TestCommentExport {
                     "\"tallyType\":\"Voting\"}" +
                 "]" +
             "}", mystring);
+    }
+
+    @Test
+    public void exportAttachment() throws JSONException, IOException {
+        ClassLoader classloader = Thread.currentThread().getContextClassLoader();
+        InputStream attachmentData = classloader.getResourceAsStream("clear_square.png");
+        final Resource attachmentResource = Mockito.mock(Resource.class);
+        Mockito.when(attachmentResource.adaptTo(InputStream.class)).thenReturn(attachmentData);
+        final Map<String, Object> attachmentMap = new HashMap<String, Object>();
+        attachmentMap.put("mimetype", "image/png");
+        final ValueMap attachmentProps = new ValueMapDecorator(attachmentMap);
+        Mockito.when(attachmentResource.getValueMap()).thenReturn(attachmentProps);
+        Mockito.when(attachmentResource.getName()).thenReturn("clear_square.png");
+
+        final JSONWriter writer = new JSONStringer();
+        final Writer attachmentWriter = new StringWriter();
+        UGCExportHelper.extractAttachment(attachmentWriter, writer.object(), attachmentResource);
+        writer.endObject();
+
+        final String rawResponse = attachmentWriter.toString();
+        final String attachmentEncodedBytes = rawResponse.substring(",\"jcr:data\":\"".length(),rawResponse.length()-1);
+        final String myString = writer.toString();
+        Assert.assertEquals("Attachment metadata doesn't match expected value",
+                "{\"filename\":\"clear_square.png\",\"jcr:mimeType\":\"image/png\"}", myString);
+        byte[] databytes = Base64.decodeBase64(attachmentEncodedBytes);
+        attachmentData = classloader.getResourceAsStream("clear_square.png");
+        InputStream recoveredData = new ByteArrayInputStream(databytes);
+        // test whether decoding the resulting base 64 string recovers the original attachment
+        Assert.assertTrue("Attachment could not be recovered from base64 string",
+                contentEquals(new BufferedInputStream(attachmentData), new BufferedInputStream(recoveredData)));
+    }
+
+    // check whether the 2 streams have the same contents
+    protected static boolean contentEquals(BufferedInputStream input1, BufferedInputStream input2) throws IOException {
+        int ch = input1.read();
+        while (-1 != ch) {
+            int ch2 = input2.read();
+            if (ch != ch2) {
+                return false;
+            }
+            ch = input1.read();
+        }
+
+        int ch2 = input2.read();
+        return (ch2 == -1);
     }
 }
