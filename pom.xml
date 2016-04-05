@@ -32,8 +32,8 @@
     <!-- SCM                                                                    -->
     <!-- ====================================================================== -->
     <scm>
-        <connection>https://github.com/Adobe-Marketing-Cloud/communities-ugc-migration.git</connection>
-        <developerConnection>https://github.com/Adobe-Marketing-Cloud/communities-ugc-migration.git</developerConnection>
+        <connection>scm:git:https://github.com/Adobe-Marketing-Cloud/communities-ugc-migration.git</connection>
+        <developerConnection>scm:git:https://github.com/Adobe-Marketing-Cloud/communities-ugc-migration.git</developerConnection>
         <url>https://github.com/Adobe-Marketing-Cloud/communities-ugc-migration.git</url>
         <tag>HEAD</tag>
     </scm>
