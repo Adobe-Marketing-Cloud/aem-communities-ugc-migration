@@ -186,7 +186,14 @@ public class UGCExportHelper {
             } else if (prop.getKey().startsWith("voting_")) {
                 continue; //we'll reconstruct this value automatically when we import votes
             } else if (prop.getKey().equals(Comment.PROP_FLAG_ALLOW_COUNT)) {
-                flagAllowCount = (Integer) value;
+                if (value instanceof Long) {
+                    flagAllowCount = ((Long)value).intValue();
+                } else if (value instanceof Integer){
+                    flagAllowCount = (Integer) value;
+                } else {
+                    // may throw a NumberFormatException
+                    flagAllowCount = Integer.getInteger(value.toString());
+                }
             } else {
                 writer.key(prop.getKey());
                 try {

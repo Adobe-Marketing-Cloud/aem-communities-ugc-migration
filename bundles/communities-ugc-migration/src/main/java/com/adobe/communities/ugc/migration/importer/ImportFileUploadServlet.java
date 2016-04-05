@@ -65,35 +65,11 @@ import java.util.zip.ZipInputStream;
         specVersion = "1.1")
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/ugc/upload")})
-public class ImportFileUploadServlet extends SlingAllMethodsServlet {
+public class ImportFileUploadServlet extends GenericUGCImporter {
 
     private static final Logger LOG = LoggerFactory.getLogger(ImportFileUploadServlet.class);
 
     public final static String UPLOAD_DIR = "/etc/migration/uploadFile";
-
-    @Reference
-    private ForumOperations forumOperations;
-
-    @Reference
-    private QnaForumOperations qnaForumOperations;
-
-    @Reference
-    private CommentOperations commentOperations;
-
-    @Reference
-    private TallyOperationsService tallyOperationsService;
-
-    @Reference
-    private CalendarOperations calendarOperations;
-
-    @Reference
-    private JournalOperations journalOperations;
-
-    @Reference
-    private SocialUtils socialUtils;
-
-    @Reference
-    private ResourceResolverFactory rrf;
 
     /**
      * The get operation returns a JSON string representing the current contents of the file repository holding our
@@ -489,91 +465,4 @@ public class ImportFileUploadServlet extends SlingAllMethodsServlet {
         throw new ServletException("Unable to read file in provided file resource path");
     }
 
-    /**
-     * Handle each of the importable types of ugc content
-     * @param jsonParser - the parsing stream
-     * @param resource - the parent resource of whatever it is we're importing (must already exist)
-     * @throws ServletException
-     * @throws IOException
-     */
-    private void importFile(final JsonParser jsonParser, final Resource resource, final ResourceResolver resolver)
-        throws ServletException, IOException {
-        final UGCImportHelper importHelper = new UGCImportHelper();
-        JsonToken token1 = jsonParser.getCurrentToken();
-        importHelper.setSocialUtils(socialUtils);
-        if (token1.equals(JsonToken.START_OBJECT)) {
-            jsonParser.nextToken();
-            if (jsonParser.getCurrentName().equals(ContentTypeDefinitions.LABEL_CONTENT_TYPE)) {
-                jsonParser.nextToken();
-                final String contentType = jsonParser.getValueAsString();
-                if (contentType.equals(ContentTypeDefinitions.LABEL_QNA_FORUM)) {
-                    importHelper.setQnaForumOperations(qnaForumOperations);
-                } else if (contentType.equals(ContentTypeDefinitions.LABEL_FORUM)) {
-                    importHelper.setForumOperations(forumOperations);
-                } else if (contentType.equals(ContentTypeDefinitions.LABEL_COMMENTS)) {
-                    importHelper.setCommentOperations(commentOperations);
-                } else if (contentType.equals(ContentTypeDefinitions.LABEL_CALENDAR)) {
-                    importHelper.setCalendarOperations(calendarOperations);
-                } else if (contentType.equals(ContentTypeDefinitions.LABEL_JOURNAL)) {
-                    importHelper.setJournalOperations(journalOperations);
-//                } else if (contentType.equals(ContentTypeDefinitions.LABEL_TALLY)) {
-//                    importHelper.setSocialUtils(socialUtils);
-                }
-                importHelper.setTallyService(tallyOperationsService); // (everything potentially needs tally)
-                jsonParser.nextToken(); // content
-                if (jsonParser.getCurrentName().equals(ContentTypeDefinitions.LABEL_CONTENT)) {
-                    jsonParser.nextToken();
-                    token1 = jsonParser.getCurrentToken();
-                    if (token1.equals(JsonToken.START_OBJECT) || token1.equals(JsonToken.START_ARRAY)) {
-                        if (!resolver.isLive()) {
-                            throw new ServletException("Resolver is already closed");
-                        }
-                    } else {
-                        throw new ServletException("Start object token not found for content");
-                    }
-                    if (token1.equals(JsonToken.START_OBJECT)) {
-                        try {
-                            if (contentType.equals(ContentTypeDefinitions.LABEL_QNA_FORUM)) {
-                                importHelper.importQnaContent(jsonParser, resource, resolver);
-                            } else if (contentType.equals(ContentTypeDefinitions.LABEL_FORUM)) {
-                                importHelper.importForumContent(jsonParser, resource, resolver);
-                            } else if (contentType.equals(ContentTypeDefinitions.LABEL_COMMENTS)) {
-                                importHelper.importCommentsContent(jsonParser, resource, resolver);
-                            } else if (contentType.equals(ContentTypeDefinitions.LABEL_JOURNAL)) {
-                                importHelper.importJournalContent(jsonParser, resource, resolver);
-                            } else {
-                                LOG.info("Unsupported content type: {}", contentType);
-                                jsonParser.skipChildren();
-                            }
-                            jsonParser.nextToken();
-                        } catch (final IOException e) {
-                            throw new ServletException(e);
-                        }
-                        jsonParser.nextToken(); // skip over END_OBJECT
-                    } else {
-                        try {
-                            if (contentType.equals(ContentTypeDefinitions.LABEL_CALENDAR)) {
-                                importHelper.importCalendarContent(jsonParser, resource);
-                            } else if (contentType.equals(ContentTypeDefinitions.LABEL_TALLY)) {
-                                importHelper.importTallyContent(jsonParser, resource);
-                            } else {
-                                LOG.info("Unsupported content type: {}", contentType);
-                                jsonParser.skipChildren();
-                            }
-                            jsonParser.nextToken();
-                        } catch (final IOException e) {
-                            throw new ServletException(e);
-                        }
-                        jsonParser.nextToken(); // skip over END_ARRAY
-                    }
-                } else {
-                    throw new ServletException("Content not found");
-                }
-            } else {
-                throw new ServletException("No content type specified");
-            }
-        } else {
-            throw new ServletException("Invalid Json format");
-        }
-    }
 }
