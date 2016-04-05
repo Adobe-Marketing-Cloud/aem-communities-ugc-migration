@@ -221,9 +221,9 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.adobe.aem.communities</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>communities-ugc-migration</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.maven.plugins</groupId>
