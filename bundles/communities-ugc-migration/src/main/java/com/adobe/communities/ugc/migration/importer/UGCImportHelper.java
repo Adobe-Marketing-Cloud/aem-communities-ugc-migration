@@ -476,6 +476,8 @@ public class UGCImportHelper {
                     }
                 } else if (label.equals(ContentTypeDefinitions.LABEL_ATTACHMENTS)) {
                     attachments = getAttachments(jsonParser);
+                } else if (label.equals(ContentTypeDefinitions.LABEL_FLAGS)) {
+                    jsonParser.skipChildren(); // TODO - implement importer for flags
                 } else if (label.equals(ContentTypeDefinitions.LABEL_REPLIES)
                         || label.equals(ContentTypeDefinitions.LABEL_TALLY)
                         || label.equals(ContentTypeDefinitions.LABEL_TRANSLATION)
