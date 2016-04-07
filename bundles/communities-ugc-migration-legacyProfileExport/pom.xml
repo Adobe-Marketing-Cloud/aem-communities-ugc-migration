@@ -26,7 +26,7 @@
     <parent>
         <groupId>com.adobe.aem.communities</groupId>
         <artifactId>communities-ugc-migration-reactor</artifactId>
-        <version>1.0.5</version>
+        <version>1.0.6-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -117,7 +117,7 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>communities-ugc-migration-legacyExport</artifactId>
-            <version>1.0.5</version>
+            <version>1.0.6-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
         <!-- Sling -->
