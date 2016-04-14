@@ -11,6 +11,28 @@
  **************************************************************************/
 package com.adobe.communities.ugc.migration.export;
 
+import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
+import com.adobe.cq.social.messaging.api.Message;
+import com.adobe.cq.social.messaging.api.MessageFilter;
+import com.adobe.cq.social.messaging.api.MessagingService;
+import org.apache.commons.io.IOUtils;
+import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Properties;
+import org.apache.felix.scr.annotations.Property;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.Service;
+import org.apache.sling.api.SlingHttpServletRequest;
+import org.apache.sling.api.SlingHttpServletResponse;
+import org.apache.sling.api.resource.Resource;
+import org.apache.sling.api.resource.ValueMap;
+import org.apache.sling.api.servlets.SlingSafeMethodsServlet;
+import org.apache.sling.commons.json.JSONException;
+import org.apache.sling.commons.json.JSONObject;
+import org.apache.sling.commons.json.io.JSONWriter;
+
+import javax.annotation.Nonnull;
+import javax.jcr.RepositoryException;
+import javax.servlet.ServletException;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -28,31 +50,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-
-import javax.annotation.Nonnull;
-import javax.jcr.RepositoryException;
-import javax.servlet.ServletException;
-
-import com.adobe.cq.social.srp.SocialResource;
-import org.apache.commons.io.IOUtils;
-import org.apache.felix.scr.annotations.Component;
-import org.apache.felix.scr.annotations.Properties;
-import org.apache.felix.scr.annotations.Property;
-import org.apache.felix.scr.annotations.Reference;
-import org.apache.felix.scr.annotations.Service;
-import org.apache.sling.api.SlingHttpServletRequest;
-import org.apache.sling.api.SlingHttpServletResponse;
-import org.apache.sling.api.resource.Resource;
-import org.apache.sling.api.resource.ValueMap;
-import org.apache.sling.api.servlets.SlingSafeMethodsServlet;
-import org.apache.sling.commons.json.JSONException;
-import org.apache.sling.commons.json.JSONObject;
-import org.apache.sling.commons.json.io.JSONWriter;
-
-import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
-import com.adobe.cq.social.messaging.api.Message;
-import com.adobe.cq.social.messaging.api.MessageFilter;
-import com.adobe.cq.social.messaging.api.MessagingService;
 
 @Component(label = "Messages Exporter",
         description = "Moves messages into a zip archive for storage or re-import", specVersion = "1.1")
