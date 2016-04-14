@@ -15,6 +15,7 @@ import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
 import com.adobe.cq.social.messaging.api.Message;
 import com.adobe.cq.social.messaging.api.MessageFilter;
 import com.adobe.cq.social.messaging.api.MessagingService;
+import com.adobe.cq.social.ugcbase.SocialUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
@@ -185,8 +186,8 @@ public class MessagesExportServlet extends SlingSafeMethodsServlet {
                     writer.object();
                     writeObject(writer, messageObject);
                     final ValueMap vm = messageResource.getValueMap();
-                    if (vm.containsKey("social:attachments")) {
-                        final Object attachments = vm.get("social:attachments");
+                    if (vm.containsKey(SocialUtils.PN_ATTACHMENT_LIST)) {
+                        final Object attachments = vm.get(SocialUtils.PN_ATTACHMENT_LIST);
                         if (attachments instanceof String[] && ((String[])attachments).length > 0) {
                             writer.key(ContentTypeDefinitions.LABEL_ATTACHMENTS);
                             final JSONWriter attachmentsWriter = writer.array();
