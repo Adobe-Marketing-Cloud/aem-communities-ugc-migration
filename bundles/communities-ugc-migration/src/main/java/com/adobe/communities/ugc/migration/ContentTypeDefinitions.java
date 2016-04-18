@@ -18,6 +18,7 @@ public class ContentTypeDefinitions {
     public final static String LABEL_CONTENT                = NAMESPACE_PREFIX + "content";
     public final static String LABEL_ATTACHMENTS            = NAMESPACE_PREFIX + "attachments";
     public final static String LABEL_TALLY                  = NAMESPACE_PREFIX + "tally";
+    public final static String LABEL_FLAGS                  = NAMESPACE_PREFIX + "flags";
     public final static String LABEL_TRANSLATION            = NAMESPACE_PREFIX + "translation";
     public final static String LABEL_TRANSLATIONS           = NAMESPACE_PREFIX + "translations";
     public final static String LABEL_TIMESTAMP_FIELDS       = NAMESPACE_PREFIX + "timestampFields";

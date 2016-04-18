@@ -18,6 +18,7 @@ import java.util.zip.ZipInputStream;
 
 import javax.servlet.ServletException;
 
+import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -57,25 +58,29 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
     private static final Logger LOG = LoggerFactory.getLogger(GenericUGCImporter.class);
 
     @Reference
-    private ForumOperations forumOperations;
+    protected ForumOperations forumOperations;
 
     @Reference
-    private QnaForumOperations qnaForumOperations;
+    protected QnaForumOperations qnaForumOperations;
 
     @Reference
-    private CommentOperations commentOperations;
+    protected CommentOperations commentOperations;
 
     @Reference
-    private TallyOperationsService tallyOperationsService;
+    protected TallyOperationsService tallyOperationsService;
 
     @Reference
-    private CalendarOperations calendarOperations;
+    protected CalendarOperations calendarOperations;
 
     @Reference
-    private SocialUtils socialUtils;
+    protected JournalOperations journalOperations;
 
     @Reference
-    private ResourceResolverFactory rrf;
+    protected SocialUtils socialUtils;
+
+    @Reference
+    protected ResourceResolverFactory rrf;
+
 
     protected void doPost(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
         throws ServletException, IOException {
@@ -102,7 +107,7 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                 final JsonParser jsonParser = new JsonFactory().createParser(inputStream);
                 jsonParser.nextToken(); // get the first token
 
-                importFile(jsonParser, resource);
+                importFile(jsonParser, resource, resolver);
             } else if (fileRequestParameters[0].getFileName().endsWith(".zip")) {
                 ZipInputStream zipInputStream;
                 try {
@@ -124,7 +129,7 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
 
                         final JsonParser jsonParser = new JsonFactory().createParser(zipInputStream);
                         jsonParser.nextToken(); // get the first token
-                        importFile(jsonParser, resource);
+                        importFile(jsonParser, resource, resolver);
                         zipInputStream.closeEntry();
                         zipEntry = zipInputStream.getNextEntry();
                         counter++;
@@ -171,7 +176,7 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                     final JsonParser jsonParser = new JsonFactory().createParser(inputStream);
                     jsonParser.nextToken(); // get the first token
 
-                    importFile(jsonParser, resource);
+                    importFile(jsonParser, resource, resolver);
                     ImportFileUploadServlet.deleteResource(fileResource);
                     return;
                 }
@@ -187,9 +192,11 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
      * @throws ServletException
      * @throws IOException
      */
-    private void importFile(final JsonParser jsonParser, final Resource resource) throws ServletException, IOException {
+    protected void importFile(final JsonParser jsonParser, final Resource resource, final ResourceResolver resolver)
+            throws ServletException, IOException {
         final UGCImportHelper importHelper = new UGCImportHelper();
         JsonToken token1 = jsonParser.getCurrentToken();
+        importHelper.setSocialUtils(socialUtils);
         if (token1.equals(JsonToken.START_OBJECT)) {
             jsonParser.nextToken();
             if (jsonParser.getCurrentName().equals(ContentTypeDefinitions.LABEL_CONTENT_TYPE)) {
@@ -203,17 +210,15 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                     importHelper.setCommentOperations(commentOperations);
                 } else if (contentType.equals(ContentTypeDefinitions.LABEL_CALENDAR)) {
                     importHelper.setCalendarOperations(calendarOperations);
-                } else if (contentType.equals(ContentTypeDefinitions.LABEL_TALLY)) {
-                    importHelper.setSocialUtils(socialUtils);
+                } else if (contentType.equals(ContentTypeDefinitions.LABEL_JOURNAL)) {
+                    importHelper.setJournalOperations(journalOperations);
                 }
                 importHelper.setTallyService(tallyOperationsService); // (everything potentially needs tally)
                 jsonParser.nextToken(); // content
                 if (jsonParser.getCurrentName().equals(ContentTypeDefinitions.LABEL_CONTENT)) {
                     jsonParser.nextToken();
                     token1 = jsonParser.getCurrentToken();
-                    ResourceResolver resolver;
                     if (token1.equals(JsonToken.START_OBJECT) || token1.equals(JsonToken.START_ARRAY)) {
-                        resolver = resource.getResourceResolver();
                         if (!resolver.isLive()) {
                             throw new ServletException("Resolver is already closed");
                         }
@@ -226,10 +231,10 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                                 importHelper.importQnaContent(jsonParser, resource, resolver);
                             } else if (contentType.equals(ContentTypeDefinitions.LABEL_FORUM)) {
                                 importHelper.importForumContent(jsonParser, resource, resolver);
-                            } else if (contentType.equals(ContentTypeDefinitions.LABEL_JOURNAL)) {
-                                importHelper.importJournalContent(jsonParser, resource, resolver);
                             } else if (contentType.equals(ContentTypeDefinitions.LABEL_COMMENTS)) {
                                 importHelper.importCommentsContent(jsonParser, resource, resolver);
+                            } else if (contentType.equals(ContentTypeDefinitions.LABEL_JOURNAL)) {
+                                importHelper.importJournalContent(jsonParser, resource, resolver);
                             } else {
                                 LOG.info("Unsupported content type: {}", contentType);
                                 jsonParser.skipChildren();

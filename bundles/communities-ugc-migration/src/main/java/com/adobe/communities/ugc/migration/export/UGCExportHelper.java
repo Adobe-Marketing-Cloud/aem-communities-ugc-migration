@@ -14,10 +14,6 @@ package com.adobe.communities.ugc.migration.export;
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
 import com.adobe.cq.social.commons.Comment;
 import com.adobe.cq.social.srp.SocialResourceProvider;
-import com.adobe.cq.social.tally.Tally;
-import com.adobe.cq.social.tally.Voting;
-import com.adobe.cq.social.tally.client.api.Response;
-import com.adobe.cq.social.tally.client.api.Vote;
 import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.adobe.cq.social.ugcbase.core.SocialResourceUtils;
 import org.apache.commons.codec.binary.Base64;
@@ -36,7 +32,6 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.GregorianCalendar;
 import java.util.Iterator;
@@ -112,8 +107,138 @@ public class UGCExportHelper {
             object.endObject();
         }
     }
+
+    public static void extractEvent(JSONWriter writer, final Resource event, final ResourceResolver resolver,
+                                    final Writer responseWriter, final SocialUtils socialUtils) throws JSONException, IOException {
+
+        final ValueMap vm = event.getValueMap();
+        final JSONArray timestampFields = new JSONArray();
+        List<String> attachments = null;
+        Integer flagAllowCount = -1;
+        String coverimage = null;
+        for (final Map.Entry<String, Object> prop : vm.entrySet()) {
+            final Object value = prop.getValue();
+            if (value instanceof String[]) {
+                if (prop.getKey().equals("social:attachments")) {
+                    attachments = Arrays.asList((String[]) value);
+                } else {
+                    final JSONArray list = new JSONArray();
+                    for (String v : (String[]) value) {
+                        list.put(v);
+                    }
+                    writer.key(prop.getKey());
+                    writer.value(list);
+                }
+            } else if (prop.getKey().equals("coverimage")) {
+                coverimage = value.toString();
+            } else if (value instanceof GregorianCalendar) {
+                timestampFields.put(prop.getKey());
+                writer.key(prop.getKey());
+                writer.value(((Calendar) value).getTimeInMillis());
+            } else if (prop.getKey().equals("sling:resourceType")) {
+                writer.key(prop.getKey());
+                writer.value(Comment.RESOURCE_TYPE);
+            } else if (prop.getKey().startsWith("voting_")) {
+                continue; //we'll reconstruct this value automatically when we import votes
+            } else if (prop.getKey().equals(Comment.PROP_FLAG_ALLOW_COUNT)) {
+                if (value instanceof Long) {
+                    flagAllowCount = ((Long)value).intValue();
+                } else if (value instanceof Integer){
+                    flagAllowCount = (Integer) value;
+                } else {
+                    // may throw a NumberFormatException
+                    flagAllowCount = Integer.getInteger(value.toString());
+                }
+            } else {
+                writer.key(prop.getKey());
+                try {
+                    writer.value(URLEncoder.encode(prop.getValue().toString(), "UTF-8"));
+                } catch (final UnsupportedEncodingException e) {
+                    throw new JSONException("Unsupported encoding (UTF-8) for resource at " + event.getPath(), e);
+                }
+            }
+        }
+        if (timestampFields.length() > 0) {
+            writer.key(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS);
+            writer.value(timestampFields);
+        }
+        if (srp == null) {
+            srp = SocialResourceUtils.getSocialResource(event).getResourceProvider();
+            srp.setConfig(socialUtils.getStorageConfig(event));
+        }
+        if (attachments != null) {
+            writer.key(ContentTypeDefinitions.LABEL_ATTACHMENTS);
+            final JSONWriter attachmentsWriter = writer.array();
+            for (final String attachment : attachments) {
+                UGCExportHelper.extractAttachment(responseWriter, attachmentsWriter.object(), resolver.getResource(attachment));
+                attachmentsWriter.endObject();
+            }
+            writer.endArray();
+        }
+        if (coverimage != null) {
+            writer.key("coverimage");
+            UGCExportHelper.extractAttachment(responseWriter, writer.object(), resolver.getResource(coverimage));
+            writer.endObject();
+        }
+        Iterable<Resource> children = event.getChildren();
+        boolean hasReplies = false;
+        final List<Resource> comments = new ArrayList<Resource>();
+        for (final Resource child : children) {
+            // check for votes, flags, or translations
+            if (child.isResourceType("social/tally/components/hbs/voting")) {
+                if (!child.hasChildren()) continue;
+                writer.key(ContentTypeDefinitions.LABEL_TALLY);
+                final JSONWriter voteObjects = writer.array();
+                UGCExportHelper.extractTally(voteObjects, child, "Voting");
+                writer.endArray();
+            } else if (child.getName().equals("translation")) {
+                if (!child.hasChildren()) continue;
+                extractTranslation(writer, child);
+            } else if (child.isResourceType("social/tally/components/voting")) {
+                if (!child.hasChildren() || !child.getPath().endsWith(flagAllowCount.toString())) continue;
+                // this resource type is used for flagging
+                writer.key(ContentTypeDefinitions.LABEL_FLAGS);
+                final JSONWriter flagObjects = writer.array();
+                UGCExportHelper.extractFlags(flagObjects, child);
+                writer.endArray();
+            } else if (child.isResourceType("social/commons/components/comments/event_comment")) {
+                hasReplies = true;
+                comments.add(child);
+            }
+        }
+
+        if (hasReplies) {
+            JSONWriter replyWriter = null;
+            for (final Resource comment : comments) {
+                if (null == replyWriter) {
+                    writer.key(ContentTypeDefinitions.LABEL_REPLIES);
+                    replyWriter = writer.object();
+                }
+                replyWriter.key(comment.getPath());
+                extractComment(replyWriter.object(), comment.adaptTo(Comment.class), resolver, responseWriter, socialUtils);
+                replyWriter.endObject();
+            }
+            if (null != replyWriter) {
+                writer.endObject();
+            }
+        }
+    }
     public static void extractAttachment(final Writer ioWriter, final JSONWriter writer, final Resource node)
             throws JSONException {
+        InputStream data = node.adaptTo(InputStream.class);
+        if (data == null) {
+            try {
+                data = srp.getAttachmentInputStream(node.getResourceResolver(), node.getPath());
+            } catch (final IOException e) {
+                writer.key(ContentTypeDefinitions.LABEL_ERROR);
+                writer.value("provided resource was not an attachment - no content node beneath " + node.getPath());
+                return;
+            } catch (final Exception e) {
+                writer.key(ContentTypeDefinitions.LABEL_ERROR);
+                writer.value(e.getMessage());
+                return;
+            }
+        }
         ValueMap content = node.getValueMap();
         if (!content.containsKey("mimetype")) {
             writer.key(ContentTypeDefinitions.LABEL_ERROR);
@@ -127,7 +252,6 @@ public class UGCExportHelper {
 
         try {
             ioWriter.write(",\"jcr:data\":\"");
-            final InputStream data = srp.getAttachmentInputStream(node.getResourceResolver(), node.getPath());
             byte[] byteData = new byte[DATA_ENCODING_CHUNK_SIZE];
             int read = 0;
             while (read != -1) {
@@ -155,6 +279,7 @@ public class UGCExportHelper {
         final ValueMap vm = post.getProperties();
         final JSONArray timestampFields = new JSONArray();
         List<String> attachments = null;
+        Integer flagAllowCount = -1;
         for (final Map.Entry<String, Object> prop : vm.entrySet()) {
             final Object value = prop.getValue();
             if (value instanceof String[]) {
@@ -177,6 +302,15 @@ public class UGCExportHelper {
                 writer.value(Comment.RESOURCE_TYPE);
             } else if (prop.getKey().startsWith("voting_")) {
                 continue; //we'll reconstruct this value automatically when we import votes
+            } else if (prop.getKey().equals(Comment.PROP_FLAG_ALLOW_COUNT)) {
+                if (value instanceof Long) {
+                    flagAllowCount = ((Long)value).intValue();
+                } else if (value instanceof Integer){
+                    flagAllowCount = (Integer) value;
+                } else {
+                    // may throw a NumberFormatException
+                    flagAllowCount = Integer.getInteger(value.toString());
+                }
             } else {
                 writer.key(prop.getKey());
                 try {
@@ -206,13 +340,23 @@ public class UGCExportHelper {
         }
         final Iterable<Resource> children = thisResource.getChildren();
         for (final Resource child : children) {
+             // check for votes, flags, or translations
             if (child.isResourceType("social/tally/components/hbs/voting")) {
+                if (!child.hasChildren()) continue;
                 writer.key(ContentTypeDefinitions.LABEL_TALLY);
                 final JSONWriter voteObjects = writer.array();
                 UGCExportHelper.extractTally(voteObjects, child, "Voting");
                 writer.endArray();
             } else if (child.getName().equals("translation")) {
+                if (!child.hasChildren()) continue;
                 extractTranslation(writer, child);
+            } else if (child.isResourceType("social/tally/components/voting")) {
+                if (!child.hasChildren() || !child.getPath().endsWith(flagAllowCount.toString())) continue;
+                // this resource type is used for flagging
+                writer.key(ContentTypeDefinitions.LABEL_FLAGS);
+                final JSONWriter flagObjects = writer.array();
+                UGCExportHelper.extractFlags(flagObjects, child);
+                writer.endArray();
             }
         }
         final Iterator<Comment> posts = post.getComments();
@@ -346,6 +490,35 @@ public class UGCExportHelper {
                 translationObject.value(timestampFields);
             }
             translationObject.endObject();
+        }
+    }
+    public static void extractFlags(final JSONWriter responseArray, final Resource rootNode) throws JSONException, IOException {
+        final Iterable<Resource> responses = rootNode.getChildren();
+
+        for (final Resource response : responses) {
+            final ValueMap properties = response.adaptTo(ValueMap.class);
+            final String userIdentifier = properties.get("userIdentifier", "");
+            final String responseValue = properties.get("response", "");
+            final String author_name = properties.get("author_display_name", "");
+            final String flag_reason = properties.get("social:flagReason", "");
+            final JSONWriter flagObject = responseArray.object();
+            flagObject.key("timestamp");
+            if (properties.get("added") instanceof Calendar) {
+                flagObject.value(((Calendar) properties.get("added")).getTimeInMillis());
+            } else {
+                flagObject.value(properties.get("added", GregorianCalendar.getInstance().getTimeInMillis()));
+            }
+            flagObject.key("response");
+            flagObject.value(URLEncoder.encode(responseValue, "UTF-8"));
+            flagObject.key("author_username");
+            flagObject.value(URLEncoder.encode(userIdentifier, "UTF-8"));
+            if (!"".equals(author_name)) {
+                flagObject.key("author_display_name");
+                flagObject.value(URLEncoder.encode(author_name, "UTF-8"));
+            }
+            flagObject.key("social:flagReason");
+            flagObject.value(URLEncoder.encode(flag_reason, "UTF-8"));
+            flagObject.endObject();
         }
     }
 }
