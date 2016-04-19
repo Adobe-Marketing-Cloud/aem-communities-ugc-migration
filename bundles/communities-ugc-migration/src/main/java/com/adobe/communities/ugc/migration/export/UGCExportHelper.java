@@ -201,7 +201,7 @@ public class UGCExportHelper {
                 final JSONWriter flagObjects = writer.array();
                 UGCExportHelper.extractFlags(flagObjects, child);
                 writer.endArray();
-            } else if (child.isResourceType("social/commons/components/comments/event_comment")) {
+            } else if (child.isResourceType("social/commons/components/comments/comment")) {
                 hasReplies = true;
                 comments.add(child);
             }

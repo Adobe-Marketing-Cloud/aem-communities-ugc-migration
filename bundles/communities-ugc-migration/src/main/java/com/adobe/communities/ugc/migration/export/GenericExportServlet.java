@@ -166,6 +166,30 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                     zip.closeEntry();
                 }
             } else
+            if (rootNode.isResourceType(Calendar.RESOURCE_TYPE)) {
+                final CommentSystem commentSystem = rootNode.adaptTo(CommentSystem.class);
+                int commentSize = commentSystem.countComments();
+                if (commentSize == 0) {
+                    return;
+                }
+                List<com.adobe.cq.social.commons.Comment> comments = commentSystem.getComments(0, commentSize);
+                zip.putNextEntry(new ZipEntry(entryName));
+                final JSONWriter calendarNode = writer.object();
+                calendarNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
+                calendarNode.value(ContentTypeDefinitions.LABEL_CALENDAR);
+                calendarNode.key(ContentTypeDefinitions.LABEL_CONTENT);
+                JSONWriter eventObjects = calendarNode.array();
+                for (final com.adobe.cq.social.commons.Comment comment : comments) {
+                    final Resource eventResource = comment.getResource();
+                    UGCExportHelper.extractEvent(eventObjects.object(), eventResource, rootNode.getResourceResolver(),
+                            responseWriter, socialUtils);
+                    eventObjects.endObject();
+                }
+                calendarNode.endArray();
+                writer.endObject();
+                responseWriter.flush();
+                zip.closeEntry();
+            } else
             if (rootNode.isResourceType(Comment.COMMENTCOLLECTION_RESOURCETYPE)) {
                 final CommentSystem commentSystem = rootNode.adaptTo(CommentSystem.class);
                 int commentSize = commentSystem.countComments();
@@ -195,35 +219,6 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                     commentsNode.endObject();
                 }
                 commentsNode.endObject();
-                writer.endObject();
-                responseWriter.flush();
-                zip.closeEntry();
-            } else
-            if (rootNode.isResourceType(Calendar.RESOURCE_TYPE_EVENT)) {
-                Calendar calendar = rootNode.getParent().adaptTo(Calendar.class);
-                if (calendar == null) { // avoid throwing a null pointer exception if this node isn't actually a
-                    // calendar
-                    for (final Resource resource : rootNode.getChildren()) {
-                        exportContent(resource, rootPath);
-                    }
-                    return;
-                }
-                final List<Object> events = calendar.getItems();
-                if (events.isEmpty()) {
-                    return;
-                }
-                zip.putNextEntry(new ZipEntry(entryName));
-                final JSONWriter calendarNode = writer.object();
-                calendarNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
-                calendarNode.value(ContentTypeDefinitions.LABEL_CALENDAR);
-                calendarNode.key(ContentTypeDefinitions.LABEL_CONTENT);
-                JSONWriter eventObjects = calendarNode.array();
-                for (final Object event : events) {
-                    final Resource eventResource = ((CalendarEvent)event).getResource();
-                    UGCExportHelper.extractEvent(eventObjects.object(), eventResource, rootNode.getResourceResolver(),
-                            responseWriter, socialUtils);
-                }
-                calendarNode.endArray();
                 writer.endObject();
                 responseWriter.flush();
                 zip.closeEntry();

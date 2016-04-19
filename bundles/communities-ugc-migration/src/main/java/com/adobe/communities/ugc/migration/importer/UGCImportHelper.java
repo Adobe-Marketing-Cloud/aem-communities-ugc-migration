@@ -49,6 +49,7 @@ import org.apache.sling.api.resource.PersistenceException;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
 import org.apache.sling.api.resource.ResourceResolverFactory;
+import org.apache.sling.commons.json.JSONException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -646,6 +647,7 @@ public class UGCImportHelper {
         jsonParser.nextToken();
         JsonToken token = jsonParser.getCurrentToken();
         List<DataSource> attachments = null;
+        boolean hasTranslation = false;
         while (token.equals(JsonToken.FIELD_NAME)) {
             String field = jsonParser.getCurrentName();
             jsonParser.nextToken();
@@ -691,6 +693,9 @@ public class UGCImportHelper {
                     LOG.error("Cover image property was not a json object");
                     jsonParser.skipChildren();
                 }
+            } else if (field.equals(ContentTypeDefinitions.LABEL_TRANSLATION)) {
+                hasTranslation = true;
+                break; // should always be the last item in the object, but break anyway, just in case
             } else {
                 final String value = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
                 eventParams.put(field, value);
@@ -703,8 +708,22 @@ public class UGCImportHelper {
             if (null == attachments) {
                 attachments = Collections.emptyList();
             }
-            calendarOperations.create(resource, author, props, attachments,
+            final Resource post = calendarOperations.create(resource, author, props, attachments,
                     resource.getResourceResolver().adaptTo(Session.class));
+            if (hasTranslation) {
+                importTranslation(jsonParser, post);
+                token = jsonParser.nextToken();
+                if(!token.equals(JsonToken.END_OBJECT)) {
+                    // translation was not the last item in the object, any other info was lost
+                    LOG.error("translation was not the final item in the exported event: " + post.getPath());
+                    while (!token.equals(JsonToken.END_OBJECT)) {
+                        if (token.equals(JsonToken.START_OBJECT) || token.equals(JsonToken.START_ARRAY)) {
+                            jsonParser.skipChildren();
+                        }
+                        token = jsonParser.nextToken();
+                    }
+                }
+            }
         } catch (final OperationException e) {
 //            probably caused by creating a folder that already exists. We ignore it, but still log the event.
             LOG.info("There was an operation exception while creating an event: " + e.getMessage());
