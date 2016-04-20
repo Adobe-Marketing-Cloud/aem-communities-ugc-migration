@@ -13,6 +13,7 @@ package com.adobe.communities.ugc.migration.export;
 
 
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
+import com.adobe.cq.social.calendar.client.api.Calendar;
 import com.adobe.cq.social.commons.CommentSystem;
 import com.adobe.cq.social.commons.comments.api.Comment;
 import com.adobe.cq.social.forum.client.api.Forum;
@@ -51,9 +52,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-
-//import com.adobe.cq.social.calendar.CqCalendar;
-//import com.adobe.cq.social.calendar.Event;
 
 @Component(label = "UGC Exporter for all UGC Data Types",
         description = "Moves any ugc data into a zip archive for storage or re-import", specVersion = "1.0")
@@ -162,6 +160,30 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                     responseWriter.flush();
                     zip.closeEntry();
                 }
+            } else
+            if (rootNode.isResourceType(Calendar.RESOURCE_TYPE)) {
+                final CommentSystem commentSystem = rootNode.adaptTo(CommentSystem.class);
+                int commentSize = commentSystem.countComments();
+                if (commentSize == 0) {
+                    return;
+                }
+                List<com.adobe.cq.social.commons.Comment> comments = commentSystem.getComments(0, commentSize);
+                zip.putNextEntry(new ZipEntry(entryName));
+                final JSONWriter calendarNode = writer.object();
+                calendarNode.key(ContentTypeDefinitions.LABEL_CONTENT_TYPE);
+                calendarNode.value(ContentTypeDefinitions.LABEL_CALENDAR);
+                calendarNode.key(ContentTypeDefinitions.LABEL_CONTENT);
+                JSONWriter eventObjects = calendarNode.array();
+                for (final com.adobe.cq.social.commons.Comment comment : comments) {
+                    final Resource eventResource = comment.getResource();
+                    UGCExportHelper.extractEvent(eventObjects.object(), eventResource, rootNode.getResourceResolver(),
+                            responseWriter, socialUtils);
+                    eventObjects.endObject();
+                }
+                calendarNode.endArray();
+                writer.endObject();
+                responseWriter.flush();
+                zip.closeEntry();
             } else
             if (rootNode.isResourceType(Comment.COMMENTCOLLECTION_RESOURCETYPE)) {
                 final CommentSystem commentSystem = rootNode.adaptTo(CommentSystem.class);
