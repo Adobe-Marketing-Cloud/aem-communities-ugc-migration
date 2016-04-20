@@ -175,7 +175,7 @@ public class UGCExportHelper {
             }
             writer.endArray();
         }
-        if (coverimage != null) {
+        if (coverimage != null && !"".equals(coverimage)) {
             writer.key("coverimage");
             UGCExportHelper.extractAttachment(responseWriter, writer.object(), resolver.getResource(coverimage));
             writer.endObject();
