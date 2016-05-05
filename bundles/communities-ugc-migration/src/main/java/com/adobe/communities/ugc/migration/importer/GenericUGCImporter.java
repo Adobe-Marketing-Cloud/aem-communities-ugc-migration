@@ -18,6 +18,7 @@ import java.util.zip.ZipInputStream;
 
 import javax.servlet.ServletException;
 
+import com.adobe.cq.social.filelibrary.client.endpoints.FileLibraryOperations;
 import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
@@ -74,6 +75,9 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
 
     @Reference
     protected JournalOperations journalOperations;
+
+    @Reference
+    protected FileLibraryOperations fileLibraryOperations;
 
     @Reference
     protected SocialUtils socialUtils;
@@ -212,6 +216,8 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                     importHelper.setCalendarOperations(calendarOperations);
                 } else if (contentType.equals(ContentTypeDefinitions.LABEL_JOURNAL)) {
                     importHelper.setJournalOperations(journalOperations);
+                } else if (contentType.equals(ContentTypeDefinitions.LABEL_FILELIBRARY)) {
+                    importHelper.setFileLibraryOperations(fileLibraryOperations);
                 }
                 importHelper.setTallyService(tallyOperationsService); // (everything potentially needs tally)
                 jsonParser.nextToken(); // content
@@ -235,6 +241,8 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                                 importHelper.importCommentsContent(jsonParser, resource, resolver);
                             } else if (contentType.equals(ContentTypeDefinitions.LABEL_JOURNAL)) {
                                 importHelper.importJournalContent(jsonParser, resource, resolver);
+                            } else if (contentType.equals(ContentTypeDefinitions.LABEL_FILELIBRARY)) {
+                                importHelper.importFileLibrary(jsonParser, resource, resolver);
                             } else {
                                 LOG.info("Unsupported content type: {}", contentType);
                                 jsonParser.skipChildren();
