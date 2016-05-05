@@ -17,6 +17,8 @@ import com.adobe.cq.social.calendar.client.endpoints.CalendarRequestConstants;
 import com.adobe.cq.social.commons.Comment;
 import com.adobe.cq.social.commons.FileDataSource;
 import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
+import com.adobe.cq.social.filelibrary.client.api.FileLibrary;
+import com.adobe.cq.social.filelibrary.client.endpoints.FileLibraryOperations;
 import com.adobe.cq.social.forum.client.api.Forum;
 import com.adobe.cq.social.forum.client.api.Post;
 import com.adobe.cq.social.forum.client.endpoints.ForumOperations;
@@ -95,6 +97,9 @@ public class UGCImportHelper {
     private JournalOperations journalOperations;
 
     @Reference
+    private FileLibraryOperations fileLibraryOperations;
+
+    @Reference
     private SocialUtils socialUtils;
 
     private SocialResourceProvider resProvider;
@@ -137,6 +142,11 @@ public class UGCImportHelper {
     public void setJournalOperations(final JournalOperations journalOperations) {
         if (this.journalOperations == null)
             this.journalOperations = journalOperations;
+    }
+
+    public void setFileLibraryOperations(final FileLibraryOperations fileLibraryOperations) {
+        if (this.fileLibraryOperations == null)
+            this.fileLibraryOperations = fileLibraryOperations;
     }
 
     public void setSocialUtils(final SocialUtils socialUtils) {
@@ -385,6 +395,24 @@ public class UGCImportHelper {
             jsonParser.nextToken(); // advance to first key in the object - should be the id value of the old post
             while (jsonParser.getCurrentToken().equals(JsonToken.FIELD_NAME)) {
                 extractTopic(jsonParser, resource, resolver, journalOperations);
+                jsonParser.nextToken(); // get the next token - presumably a field name for the next post
+            }
+            jsonParser.nextToken(); // skip end token
+        } else {
+            throw new IOException("Improperly formed JSON - expected an OBJECT_START token, but got "
+                    + jsonParser.getCurrentToken().toString());
+        }
+    }
+
+    public void importFileLibrary(final JsonParser jsonParser, final Resource resource,
+                                     final ResourceResolver resolver) throws IOException, ServletException {
+        if (!resource.getResourceType().equals(FileLibrary.RESOURCE_TYPE_FILELIBRARY)) {
+            throw new IOException("Cannot import file library onto non-file library parent resource");
+        }
+        if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
+            jsonParser.nextToken(); // advance to first key in the object - should be the id value of the old post
+            while (jsonParser.getCurrentToken().equals(JsonToken.FIELD_NAME)) {
+                extractTopic(jsonParser, resource, resolver, fileLibraryOperations);
                 jsonParser.nextToken(); // get the next token - presumably a field name for the next post
             }
             jsonParser.nextToken(); // skip end token
@@ -880,11 +908,11 @@ public class UGCImportHelper {
         }
 
         /**
-         * Returns the MIME type of the content.
-         * @return content MIME type.
+         * Returns the file extension of the content.
+         * @return file extension
          */
         public String getType() {
-            return mimeType;
+            return filename.substring(filename.lastIndexOf('.'));
         }
 
         /**

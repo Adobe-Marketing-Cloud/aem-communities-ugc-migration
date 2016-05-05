@@ -33,4 +33,5 @@ public class ContentTypeDefinitions {
     public final static String LABEL_COMMENTS               = "comments";
     public final static String LABEL_CALENDAR               = "calendar";
     public final static String LABEL_JOURNAL                = "journal";
+    public final static String LABEL_FILELIBRARY            = "fileLibrary";
 }

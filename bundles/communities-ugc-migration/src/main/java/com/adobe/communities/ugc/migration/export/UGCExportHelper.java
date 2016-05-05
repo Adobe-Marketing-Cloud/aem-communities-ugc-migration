@@ -297,9 +297,6 @@ public class UGCExportHelper {
                 timestampFields.put(prop.getKey());
                 writer.key(prop.getKey());
                 writer.value(((Calendar) value).getTimeInMillis());
-            } else if (prop.getKey().equals("sling:resourceType")) {
-                writer.key(prop.getKey());
-                writer.value(Comment.RESOURCE_TYPE);
             } else if (prop.getKey().startsWith("voting_")) {
                 continue; //we'll reconstruct this value automatically when we import votes
             } else if (prop.getKey().equals(Comment.PROP_FLAG_ALLOW_COUNT)) {

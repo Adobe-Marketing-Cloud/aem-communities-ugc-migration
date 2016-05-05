@@ -16,6 +16,7 @@ import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
 import com.adobe.cq.social.calendar.client.api.Calendar;
 import com.adobe.cq.social.commons.CommentSystem;
 import com.adobe.cq.social.commons.comments.api.Comment;
+import com.adobe.cq.social.filelibrary.client.api.FileLibrary;
 import com.adobe.cq.social.forum.client.api.Forum;
 import com.adobe.cq.social.journal.client.api.Journal;
 import com.adobe.cq.social.qna.client.api.QnaPost;
@@ -202,6 +203,8 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
                     commentsNode.value(ContentTypeDefinitions.LABEL_QNA_FORUM);
                 } else if (rootNode.isResourceType(Forum.RESOURCE_TYPE)) {
                     commentsNode.value(ContentTypeDefinitions.LABEL_FORUM);
+                } else if (rootNode.isResourceType(FileLibrary.RESOURCE_TYPE_FILELIBRARY)) {
+                    commentsNode.value(ContentTypeDefinitions.LABEL_FILELIBRARY);
                 } else {
                     commentsNode.value(ContentTypeDefinitions.LABEL_COMMENTS);
                 }
