@@ -144,7 +144,7 @@
         <dependency>
             <groupId>com.adobe.cq.social</groupId>
             <artifactId>cq-socialcommunities-api</artifactId>
-            <version>1.8.305</version>
+            <version>1.8.389</version>
         </dependency>
         <dependency>
             <groupId>com.adobe.aem</groupId>

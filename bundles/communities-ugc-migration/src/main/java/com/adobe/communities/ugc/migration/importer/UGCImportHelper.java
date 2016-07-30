@@ -20,7 +20,6 @@ import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
 import com.adobe.cq.social.filelibrary.client.api.FileLibrary;
 import com.adobe.cq.social.filelibrary.client.endpoints.FileLibraryOperations;
 import com.adobe.cq.social.forum.client.api.Forum;
-import com.adobe.cq.social.forum.client.api.Post;
 import com.adobe.cq.social.forum.client.endpoints.ForumOperations;
 import com.adobe.cq.social.journal.client.api.Journal;
 import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
@@ -57,7 +56,6 @@ import javax.activation.DataSource;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.servlet.ServletException;
-import javax.xml.crypto.Data;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -328,6 +326,8 @@ public class UGCImportHelper {
             // We can ignore this. It means that the value set for the response in the migrated data is no longer
             // valid. This happens for "#neutral#" which used to be a valid response, but was taken out in later
             // versions.
+        } finally {
+            resolver.close();
         }
     }
 
@@ -422,7 +422,8 @@ public class UGCImportHelper {
         }
     }
 
-    public void importCalendarContent(final JsonParser jsonParser, final Resource resource) throws IOException {
+    public void importCalendarContent(final JsonParser jsonParser, final Resource resource,
+                                      final ResourceResolver resolver) throws IOException {
         if (!resource.getResourceType().equals(com.adobe.cq.social.calendar.client.api.Calendar.RESOURCE_TYPE)) {
             throw new IOException("Cannot import calendar event onto non-calendar parent resource");
         }
@@ -434,8 +435,12 @@ public class UGCImportHelper {
         }
         if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
             while (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
-                extractEvent(jsonParser, resource);
-                jsonParser.nextToken(); // get the next token - either a start object token or an end array token
+                try {
+                    extractEvent(jsonParser, resource, resolver);
+                    jsonParser.nextToken(); // get the next token - either a start object token or an end array token
+                } catch(final Exception e) {
+                    throw new IOException("Failed to create calendar event: " + e.getMessage(), e);
+                }
             }
         } else {
             throw new IOException("Improperly formed JSON - expected an OBJECT_START token, but got "
@@ -443,13 +448,14 @@ public class UGCImportHelper {
         }
     }
 
-    public void importTallyContent(final JsonParser jsonParser, final Resource resource) throws IOException {
+    public void importTallyContent(final JsonParser jsonParser, final Resource resource,
+                                   final ResourceResolver resolver) throws IOException {
 
         SocialResourceConfiguration config = socialUtils.getStorageConfig(resource);
         final String rootPath = config.getAsiPath();
         if (null == resProvider) {
             resProvider =
-                    SocialResourceUtils.getSocialResource(resource.getResourceResolver().getResource(rootPath))
+                    SocialResourceUtils.getSocialResource(resolver.getResource(rootPath))
                             .getResourceProvider();
             resProvider.setConfig(config);
         }
@@ -508,10 +514,9 @@ public class UGCImportHelper {
                     jsonParser.skipChildren(); // TODO - implement importer for flags
                 } else if (label.equals(ContentTypeDefinitions.LABEL_REPLIES)
                         || label.equals(ContentTypeDefinitions.LABEL_TALLY)
-                        || label.equals(ContentTypeDefinitions.LABEL_TRANSLATION)
-                        || label.equals(ContentTypeDefinitions.LABEL_SUBNODES)) {
-                    // replies and sub-nodes ALWAYS come after all other properties and attachments have been listed,
-                    // so we can create the post now if we haven't already, and then dive in
+                        || label.equals(ContentTypeDefinitions.LABEL_TRANSLATION)) {
+                    // replies tallies and translations ALWAYS come after all other properties and attachments have been
+                    // listed, so we can create the post now if we haven't already, and then dive in
                     if (post == null) {
                         if (properties.containsKey("isClosed")) {
                             if ((Boolean)properties.get("isClosed")) {
@@ -521,51 +526,13 @@ public class UGCImportHelper {
                         }
                         try {
                             post =
-                                createPost(resource, author, properties, attachments,
-                                    resolver.adaptTo(Session.class), operations);
-                            if (null == resProvider) {
-                                resProvider = SocialResourceUtils.getSocialResource(post).getResourceProvider();
-                                resProvider.setConfig(socialUtils.getStorageConfig(post));
-                            }
+                                    createPost(resource, author, properties, attachments,
+                                            resolver.adaptTo(Session.class), operations);
                         } catch (Exception e) {
                             throw new ServletException(e.getMessage(), e);
                         }
                     }
-                    if (label.equals(ContentTypeDefinitions.LABEL_REPLIES)) {
-                        if (token.equals(JsonToken.START_OBJECT)) {
-                            jsonParser.nextToken();
-                            while (!token.equals(JsonToken.END_OBJECT)) {
-                                extractTopic(jsonParser, post, resolver, operations);
-                                token = jsonParser.nextToken();
-                            }
-                        } else {
-                            throw new IOException("Expected an object for the subnodes");
-                        }
-                    } else if (label.equals(ContentTypeDefinitions.LABEL_SUBNODES)) {
-                        if (token.equals(JsonToken.START_OBJECT)) {
-                            token = jsonParser.nextToken();
-                            try {
-                                while (!token.equals(JsonToken.END_OBJECT)) {
-                                    final String subnodeType = jsonParser.getCurrentName();
-                                    token = jsonParser.nextToken();
-                                    if (token.equals(JsonToken.START_OBJECT)) {
-                                        jsonParser.skipChildren();
-                                        token = jsonParser.nextToken();
-                                    }
-                                }
-                            } catch (final IOException e) {
-                                throw new IOException("unable to skip child of sub-nodes", e);
-                            }
-                        } else {
-                            final String field = jsonParser.getValueAsString();
-                            throw new IOException("Expected an object for the subnodes. Instead: " + field);
-                        }
-                    } else if (label.equals(ContentTypeDefinitions.LABEL_TALLY)) {
-                        UGCImportHelper.extractTally(post, jsonParser, resProvider, tallyOperationsService);
-                    } else if (label.equals(ContentTypeDefinitions.LABEL_TRANSLATION)) {
-                        importTranslation(jsonParser, post);
-                        resProvider.commit(post.getResourceResolver());
-                    }
+                    finishPost(post, label, token, jsonParser, resolver, operations);
 
                 } else if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {
                     properties.put(label, UGCImportHelper.extractSubmap(jsonParser));
@@ -629,6 +596,31 @@ public class UGCImportHelper {
         }
     }
 
+    private void finishPost(Resource post,
+                    final String label,JsonToken token,
+                    final JsonParser jsonParser, final ResourceResolver resolver, final CommentOperations operations)
+                    throws ServletException, IOException {
+        if (null == resProvider) {
+            resProvider = SocialResourceUtils.getSocialResource(post).getResourceProvider();
+            resProvider.setConfig(socialUtils.getStorageConfig(post));
+        }
+        if (label.equals(ContentTypeDefinitions.LABEL_REPLIES)) {
+            if (token.equals(JsonToken.START_OBJECT)) {
+                jsonParser.nextToken();
+                while (!token.equals(JsonToken.END_OBJECT)) {
+                    extractTopic(jsonParser, post, resolver, operations);
+                    token = jsonParser.nextToken();
+                }
+            } else {
+                throw new IOException("Expected an object for the subnodes");
+            }
+        } else if (label.equals(ContentTypeDefinitions.LABEL_TALLY)) {
+            UGCImportHelper.extractTally(post, jsonParser, resProvider, tallyOperationsService);
+        } else if (label.equals(ContentTypeDefinitions.LABEL_TRANSLATION)) {
+            importTranslation(jsonParser, post);
+            resProvider.commit(post.getResourceResolver());
+        }
+    }
     protected static Resource createPost(final Resource resource, final String author,
         final Map<String, Object> properties, final List<DataSource> attachments, final Session session,
         final CommentOperations operations) throws OperationException {
@@ -667,30 +659,28 @@ public class UGCImportHelper {
         return true;
     }
 
-    protected void extractEvent(final JsonParser jsonParser, final Resource resource) throws IOException {
+    protected void extractEvent(final JsonParser jsonParser, final Resource resource, final ResourceResolver resolver)
+            throws IOException,
+            OperationException, ServletException {
 
         String author = null;
-        Map<String, Object> eventParams = new HashMap<String, Object>();
+        final Map<String, Object> eventParams = new HashMap<String, Object>();
         jsonParser.nextToken();
         JsonToken token = jsonParser.getCurrentToken();
+        final List<DataSource> attachments = new ArrayList<DataSource>();
+        Resource post = null;
+        String field = "";
         while (token.equals(JsonToken.FIELD_NAME)) {
-            String field = jsonParser.getCurrentName();
+            field = jsonParser.getCurrentName();
             jsonParser.nextToken();
 
             if (field.equals(PN_START) || field.equals(PN_END)) {
+                // save these values as dates with a UTC timezone
                 final Long value = jsonParser.getValueAsLong();
                 final Calendar calendar = new GregorianCalendar();
                 calendar.setTimeInMillis(value);
-                final Date date = calendar.getTime();
-                final TimeZone tz = TimeZone.getTimeZone("UTC");
-                // this is the ISO-8601 format expected by the CalendarOperations object
-                final DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm+00:00");
-                df.setTimeZone(tz);
-                if (field.equals(PN_START)) {
-                    eventParams.put(CalendarRequestConstants.START_DATE, df.format(date));
-                } else {
-                    eventParams.put(CalendarRequestConstants.END_DATE, df.format(date));
-                }
+                calendar.setTimeZone(TimeZone.getTimeZone("UTC"));
+                eventParams.put(field, calendar);
             } else if (field.equals(CalendarRequestConstants.TAGS)) {
                 List<String> tags = new ArrayList<String>();
                 if (jsonParser.getCurrentToken().equals(JsonToken.START_ARRAY)) {
@@ -704,21 +694,58 @@ public class UGCImportHelper {
                     LOG.warn("Tags field came in without an array of tags in it - not processed");
                     // do nothing, just log the error
                 }
-            } else if (field.equals("jcr:createdBy")) {
+            } else if (field.equals("userIdentifier")) {
                 author = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
             } else if (field.equals("jcr:description")) {
                 eventParams.put("message", URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8"));
             } else if (field.equals(ContentTypeDefinitions.LABEL_TIMESTAMP_FIELDS)) {
-                jsonParser.skipChildren(); // we do nothing with these because they're going to be put into json
+                jsonParser.nextToken(); // skip START_ARRAY
+                while (!jsonParser.getCurrentToken().equals(JsonToken.END_ARRAY)) {
+                    final String timestampLabel = jsonParser.getValueAsString();
+                    if (!timestampLabel.equals(PN_START) && !timestampLabel.equals(PN_END) && // <-- handled previously
+                        eventParams.containsKey(timestampLabel) && eventParams.get(timestampLabel) instanceof Long) {
+                        final Calendar calendar = new GregorianCalendar();
+                        calendar.setTimeInMillis((Long) eventParams.get(timestampLabel));
+                        eventParams.put(timestampLabel, calendar);
+                    }
+                    jsonParser.nextToken();
+                }
+            } else if (field.equals(ContentTypeDefinitions.LABEL_ATTACHMENTS)) {
+                getAttachments(jsonParser, attachments);
+            } else if (field.equals(CalendarRequestConstants.COVER_IMAGE_PARAM)) {
+                final FileDataSource attachment = getAttachment(jsonParser);
+                if (null != attachment) {
+                    eventParams.put(CalendarRequestConstants.COVER_IMAGE_PARAM, attachment);
+                }
+            } else if (field.equals(ContentTypeDefinitions.LABEL_REPLIES)
+                    || field.equals(ContentTypeDefinitions.LABEL_TALLY)
+                    || field.equals(ContentTypeDefinitions.LABEL_TRANSLATION)) {
+                if (null == post) {
+                    try {
+                        post = calendarOperations.create(resource, author, eventParams, attachments,
+                                        resolver.adaptTo(Session.class));
+                    } catch (Exception e) {
+                        throw new ServletException(e.getMessage(), e);
+                    }
+                }
+                finishPost(post, field, jsonParser.getCurrentToken(), jsonParser, resolver, commentOperations);
             } else {
-                try {
+                token = jsonParser.getCurrentToken();
+                if (token.isNumeric()) {
+                    eventParams.put(field, jsonParser.getValueAsLong());
+                } else {
                     final String value = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
-                    eventParams.put(field, value);
-                } catch (NullPointerException e) {
-                    throw e;
+                    if (value.equals("true") || value.equals("false")) {
+                        eventParams.put(field, jsonParser.getValueAsBoolean());
+                    } else {
+                        eventParams.put(field, value);
+                    }
                 }
             }
             token = jsonParser.nextToken();
+        }
+        if (null == post) {
+            calendarOperations.create(resource, author, eventParams, attachments, resolver.adaptTo(Session.class));
         }
     }
 
@@ -729,37 +756,41 @@ public class UGCImportHelper {
         return attachments;
     }
 
+    protected static FileDataSource getAttachment(final JsonParser jsonParser) throws IOException {
+
+        String filename = null;
+        String mimeType = null;
+        InputStream inputStream = null;
+        byte[] databytes = null;
+        JsonToken token = jsonParser.nextToken();
+        while (!token.equals(JsonToken.END_OBJECT)) {
+            final String label = jsonParser.getCurrentName();
+            jsonParser.nextToken();
+            if (label.equals("filename")) {
+                filename = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
+            } else if (label.equals("jcr:mimeType")) {
+                mimeType = jsonParser.getValueAsString();
+            } else if (label.equals("jcr:data")) {
+                databytes = Base64.decodeBase64(jsonParser.getValueAsString());
+                inputStream = new ByteArrayInputStream(databytes);
+            }
+            token = jsonParser.nextToken();
+        }
+        if (filename != null && mimeType != null && inputStream != null) {
+            return new UGCImportHelper.AttachmentStruct(filename, inputStream, mimeType, databytes.length);
+        } else {
+            // log an error
+            LOG.error("We expected to import an attachment, but information was missing and nothing was imported");
+            return null;
+        }
+    }
     protected static void getAttachments(final JsonParser jsonParser, final List attachments) throws IOException {
 
         JsonToken token = jsonParser.nextToken(); // skip START_ARRAY token
-        String filename;
-        String mimeType;
-        InputStream inputStream;
         while (token.equals(JsonToken.START_OBJECT)) {
-            filename = null;
-            mimeType = null;
-            inputStream = null;
-            byte[] databytes = null;
-            token = jsonParser.nextToken();
-            while (!token.equals(JsonToken.END_OBJECT)) {
-                final String label = jsonParser.getCurrentName();
-                jsonParser.nextToken();
-                if (label.equals("filename")) {
-                    filename = URLDecoder.decode(jsonParser.getValueAsString(), "UTF-8");
-                } else if (label.equals("jcr:mimeType")) {
-                    mimeType = jsonParser.getValueAsString();
-                } else if (label.equals("jcr:data")) {
-                    databytes = Base64.decodeBase64(jsonParser.getValueAsString());
-                    inputStream = new ByteArrayInputStream(databytes);
-                }
-                token = jsonParser.nextToken();
-            }
-            if (filename != null && mimeType != null && inputStream != null) {
-                attachments.add(new UGCImportHelper.AttachmentStruct(filename, inputStream, mimeType,
-                        databytes.length));
-            } else {
-                // log an error
-                LOG.error("We expected to import an attachment, but information was missing and nothing was imported");
+            final FileDataSource attachment = getAttachment(jsonParser);
+            if (null != attachment) {
+                attachments.add(attachment);
             }
             token = jsonParser.nextToken();
         }

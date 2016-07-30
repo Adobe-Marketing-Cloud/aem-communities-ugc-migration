@@ -34,6 +34,7 @@ import org.apache.jackrabbit.JcrConstants;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.request.RequestParameter;
+import org.apache.sling.api.resource.LoginException;
 import org.apache.sling.api.resource.NonExistingResource;
 import org.apache.sling.api.resource.PersistenceException;
 import org.apache.sling.api.resource.Resource;
@@ -52,6 +53,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
@@ -430,10 +432,17 @@ public class ImportFileUploadServlet extends GenericUGCImporter {
         throws ServletException, IOException {
 
         final String path = request.getRequestParameter("path").getString();
-        final ResourceResolver resolver = request.getResourceResolver();
-        UGCImportHelper.checkUserPrivileges(resolver, rrf);
+        final ResourceResolver requestUserResolver = request.getResourceResolver();
+        UGCImportHelper.checkUserPrivileges(requestUserResolver, rrf);
 
-        final Resource resource = resolver.getResource(path);
+        ResourceResolver serviceUserResolver;
+        try {
+            serviceUserResolver = serviceUserWrapper.getServiceResourceResolver(rrf,
+                    Collections.<String, Object>singletonMap(ResourceResolverFactory.SUBSERVICE, UGC_WRITER));
+        } catch (final LoginException e) {
+            throw new ServletException("Not able to invoke service user");
+        }
+        final Resource resource = serviceUserResolver.getResource(path);
         if (resource == null) {
             throw new ServletException("Could not find a valid resource for import");
         }
@@ -441,7 +450,7 @@ public class ImportFileUploadServlet extends GenericUGCImporter {
         if (!filePath.startsWith(ImportFileUploadServlet.UPLOAD_DIR)) {
             throw new ServletException("Path to file resource lies outside migration import path");
         }
-        final Resource fileResource = resolver.getResource(filePath);
+        final Resource fileResource = requestUserResolver.getResource(filePath);
         if (fileResource == null) {
             throw new ServletException("Could not find a valid file resource to read");
         }
@@ -456,7 +465,7 @@ public class ImportFileUploadServlet extends GenericUGCImporter {
                     final JsonParser jsonParser = new JsonFactory().createParser(inputStream);
                     jsonParser.nextToken(); // get the first token
 
-                    importFile(jsonParser, resource, resolver);
+                    importFile(jsonParser, resource, serviceUserResolver);
                     deleteResource(fileResource);
                     return;
                 }

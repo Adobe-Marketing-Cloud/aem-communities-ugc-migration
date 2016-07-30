@@ -13,6 +13,7 @@ package com.adobe.communities.ugc.migration.importer;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -20,6 +21,7 @@ import javax.servlet.ServletException;
 
 import com.adobe.cq.social.filelibrary.client.endpoints.FileLibraryOperations;
 import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
+import com.adobe.cq.social.serviceusers.internal.ServiceUserWrapper;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -29,6 +31,7 @@ import org.apache.jackrabbit.JcrConstants;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.request.RequestParameter;
+import org.apache.sling.api.resource.LoginException;
 import org.apache.sling.api.resource.NonExistingResource;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
@@ -46,7 +49,6 @@ import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import org.apache.sling.commons.json.JSONException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +57,8 @@ import org.slf4j.LoggerFactory;
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/ugc/import")})
 public class GenericUGCImporter extends SlingAllMethodsServlet {
+
+    final static String UGC_WRITER = "ugc-writer";
 
     private static final Logger LOG = LoggerFactory.getLogger(GenericUGCImporter.class);
 
@@ -85,13 +89,22 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
     @Reference
     protected ResourceResolverFactory rrf;
 
+    @Reference
+    protected ServiceUserWrapper serviceUserWrapper;
+
 
     protected void doPost(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
         throws ServletException, IOException {
 
-        final ResourceResolver resolver = request.getResourceResolver();
+        UGCImportHelper.checkUserPrivileges(request.getResourceResolver(), rrf);
 
-        UGCImportHelper.checkUserPrivileges(resolver, rrf);
+        ResourceResolver resolver;
+        try {
+            resolver = serviceUserWrapper.getServiceResourceResolver(rrf,
+                    Collections.<String, Object>singletonMap(ResourceResolverFactory.SUBSERVICE, UGC_WRITER));
+        } catch (final LoginException e) {
+            throw new ServletException("Not able to invoke service user");
+        }
 
         // finally get the uploaded file
         final RequestParameter[] fileRequestParameters = request.getRequestParameters("file");
@@ -105,6 +118,7 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                 final String path = request.getRequestParameter("path").getString();
                 final Resource resource = resolver.getResource(path);
                 if (resource == null) {
+                    resolver.close();
                     throw new ServletException("Could not find a valid resource for import");
                 }
                 final InputStream inputStream = fileRequestParameters[0].getInputStream();
@@ -117,6 +131,7 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                 try {
                     zipInputStream = new ZipInputStream(fileRequestParameters[0].getInputStream());
                 } catch (IOException e) {
+                    resolver.close();
                     throw new ServletException("Could not open zip archive");
                 }
 
@@ -128,6 +143,7 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                         final String path = paths[counter].getString();
                         final Resource resource = resolver.getResource(path);
                         if (resource == null) {
+                            resolver.close();
                             throw new ServletException("Could not find a valid resource for import");
                         }
 
@@ -142,11 +158,14 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                     zipInputStream.close();
                 }
             } else {
+                resolver.close();
                 throw new ServletException("Unrecognized file input type");
             }
         } else {
+            resolver.close();
             throw new ServletException("No file provided for UGC data");
         }
+        resolver.close();
     }
 
     protected void doGet(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
@@ -210,8 +229,6 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                     importHelper.setQnaForumOperations(qnaForumOperations);
                 } else if (contentType.equals(ContentTypeDefinitions.LABEL_FORUM)) {
                     importHelper.setForumOperations(forumOperations);
-                } else if (contentType.equals(ContentTypeDefinitions.LABEL_COMMENTS)) {
-                    importHelper.setCommentOperations(commentOperations);
                 } else if (contentType.equals(ContentTypeDefinitions.LABEL_CALENDAR)) {
                     importHelper.setCalendarOperations(calendarOperations);
                 } else if (contentType.equals(ContentTypeDefinitions.LABEL_JOURNAL)) {
@@ -220,6 +237,7 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                     importHelper.setFileLibraryOperations(fileLibraryOperations);
                 }
                 importHelper.setTallyService(tallyOperationsService); // (everything potentially needs tally)
+                importHelper.setCommentOperations(commentOperations); // nearly anything can have comments on it
                 jsonParser.nextToken(); // content
                 if (jsonParser.getCurrentName().equals(ContentTypeDefinitions.LABEL_CONTENT)) {
                     jsonParser.nextToken();
@@ -255,9 +273,9 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                     } else {
                         try {
                             if (contentType.equals(ContentTypeDefinitions.LABEL_CALENDAR)) {
-                                importHelper.importCalendarContent(jsonParser, resource);
+                                importHelper.importCalendarContent(jsonParser, resource, resolver);
                             } else if (contentType.equals(ContentTypeDefinitions.LABEL_TALLY)) {
-                                importHelper.importTallyContent(jsonParser, resource);
+                                importHelper.importTallyContent(jsonParser, resource, resolver);
                             } else {
                                 LOG.info("Unsupported content type: {}", contentType);
                                 jsonParser.skipChildren();

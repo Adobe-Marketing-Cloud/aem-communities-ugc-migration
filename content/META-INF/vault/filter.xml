@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <workspaceFilter version="1.0">
     <filter root="/apps/migration"/>
-    <filter root="/libs/social/console/config/org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended-migration.config"/>
+    <filter root="/libs/social/console/install/org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended-migration.config"/>
     <filter root="/libs/social/console/content/importUpload"/>
     <filter root="/libs/social/console/content/nav/communities/admin/migration"/>
 </workspaceFilter>
