@@ -326,8 +326,6 @@ public class UGCImportHelper {
             // We can ignore this. It means that the value set for the response in the migrated data is no longer
             // valid. This happens for "#neutral#" which used to be a valid response, but was taken out in later
             // versions.
-        } finally {
-            resolver.close();
         }
     }
 

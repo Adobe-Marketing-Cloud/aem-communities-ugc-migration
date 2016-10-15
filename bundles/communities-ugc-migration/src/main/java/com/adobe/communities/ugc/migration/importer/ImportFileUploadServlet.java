@@ -11,24 +11,14 @@
  **************************************************************************/
 package com.adobe.communities.ugc.migration.importer;
 
-import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
-import com.adobe.cq.social.calendar.client.endpoints.CalendarOperations;
-import com.adobe.cq.social.commons.comments.endpoints.CommentOperations;
-import com.adobe.cq.social.forum.client.endpoints.ForumOperations;
-import com.adobe.cq.social.journal.client.endpoints.JournalOperations;
-import com.adobe.cq.social.qna.client.endpoints.QnaForumOperations;
-import com.adobe.cq.social.tally.client.endpoints.TallyOperationsService;
-import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
-import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.jackrabbit.JcrConstants;
 import org.apache.sling.api.SlingHttpServletRequest;
@@ -42,7 +32,6 @@ import org.apache.sling.api.resource.ResourceResolver;
 import org.apache.sling.api.resource.ResourceResolverFactory;
 import org.apache.sling.api.resource.ResourceUtil;
 import org.apache.sling.api.resource.ValueMap;
-import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.io.JSONWriter;
 import org.slf4j.Logger;
