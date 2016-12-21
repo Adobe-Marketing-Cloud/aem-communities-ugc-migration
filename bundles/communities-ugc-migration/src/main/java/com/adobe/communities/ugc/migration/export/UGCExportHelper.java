@@ -301,14 +301,14 @@ public class UGCExportHelper {
                 continue; //we'll reconstruct this value automatically when we import votes
             } else if (prop.getKey().equals(Comment.PROP_FLAG_ALLOW_COUNT)) {
                 if (value instanceof Long) {
-                    flagAllowCount = ((Long)value).intValue();
-                } else if (value instanceof Integer){
+                    flagAllowCount = ((Long) value).intValue();
+                } else if (value instanceof Integer) {
                     flagAllowCount = (Integer) value;
                 } else {
                     // may throw a NumberFormatException
                     flagAllowCount = Integer.getInteger(value.toString());
                 }
-            } else {
+            } else if (null != value) {
                 writer.key(prop.getKey());
                 try {
                     writer.value(URLEncoder.encode(prop.getValue().toString(), "UTF-8"));

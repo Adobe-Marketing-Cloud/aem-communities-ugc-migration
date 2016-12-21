@@ -39,7 +39,6 @@ import com.adobe.cq.social.scf.SocialComponentFactoryManager;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.mongodb.util.JSONParseException;
 
 @Component(label = "UGC Migration Social Graph Importer",
         description = "Accepts a json file containing social graph data and applies it to stored profiles",
@@ -86,7 +85,7 @@ public class SocialGraphImportServlet extends SlingAllMethodsServlet {
     }
 
     private void importFile(final JsonParser jsonParser, final SlingHttpServletRequest request)
-        throws ServletException, JSONParseException, IOException {
+        throws ServletException, IOException {
 
         JsonToken token = jsonParser.nextToken();
         while (!token.equals(JsonToken.END_OBJECT)) {
