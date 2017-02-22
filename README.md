@@ -1,12 +1,14 @@
 # communities-ugc-migration
 AEM Communities UGC Migration Tool
 
-6/25/2015
+2/22/2017
 This product contains 4 distinct pieces:
 - com.adobe.communities.ugc.migration.legacyExport: An exporter package for extracting user-generated content (UGC) from legacy versions of Adobe Experience Manager versions 5.6.1 and 6.0. Additionally, this package can export profile scores.
 - com.adobe.communities.ugc.migration.legacyProfileExport: An exporter package specifically for exporting profile data (messages and social-graph) from AEM 6.0, where those features were introduced.
-- package com.adobe.communities.ugc.migration: Eventually, this will provide both an exporter and an importer service for UGC and profile data into and out of AEM 6.1. However, as of this writing, only the importer has been constructed.
-- communities-ugc-migration-pkg: This package provides a graphical user interface for importing UGC into 6.1. It must be installed in /crx/packMgr. The UI shows up in the admin section at "libs/social/console/content/importUpload.html".
+- package com.adobe.communities.ugc.migration: This provides both an exporter and an importer service for UGC and profile data into and out of AEM 6.1+.
+- communities-ugc-migration-pkg: This package provides a graphical user interface for importing UGC into 6.1+. It must be installed in /crx/packMgr. The UI shows up in the admin section at "libs/social/console/content/importUpload.html".
+
+Currently, there isn't support for exporting messages and social-graph from AEM 6.1+
 
 # Supported types for UGC Migration
 The following types of UGC can be migrated from AEM 5.6.1 or 6.0 into AEM 6.1:
@@ -39,7 +41,13 @@ Since messages and social graphs can only be migrated from 6.0 (as they didn't e
 4. To export social graph, you will need to look up the path to your system's profiles. By default, it is /home/users, but your value may be custom.
 6. Go to /services/social/graph/export?path=/home/users (replace /home/users with your own value if it's different). Save the response as a json file.
 
-# Importing UGC into 6.1 using the import servlet with UI
+# Exporting UGC from AEM Communities 6.1+ (for backup or migration between instances)
+1. Build the package "communities-ugc-migration" using maven.
+2. Install the resulting .jar file in /system/console/bundles of the machine you want to export from.
+3. Go to /crx/de and expand /content to find the root node for the component you wish to export (not within /content/usergenerated). Copy the path to the root of the components you wish to export.
+4. In your browser, go to /services/social/ugc/export?path=[path you copied in crx/de]. This will trigger a file download of a zip archive containing all the UGC at or below the root node path you provided.
+
+# Importing UGC into 6.1+ using the import servlet with UI
 1. Build the package "communities-ugc-migration" using maven.
 2. Install the resulting .jar file in /system/console/bundles on a publish node of your AEM 6.1 instance where you wish to import.
 3. Build the package "communities-ugc-migration-pkg" using maven.
@@ -51,7 +59,7 @@ Since messages and social graphs can only be migrated from 6.0 (as they didn't e
 
 As the content is imported, the file containing that content will automatically be deleted from the system. If you want to delete, rather than import, any of the files extracted from the archive, just select them in the dropdown list and press the "delete" button.
 
-# Importing UGC into 6.1 using curl
+# Importing UGC into 6.1+ using curl
 1. Build the package "communities-ugc-migration" using maven.
 2. Install the resulting .jar file in /system/console/bundles on a publish node of your AEM 6.1 instance where you wish to import.
 3. If you haven't already, you'll need to create the UGC component nodes for the content you want to migrate.
@@ -60,21 +68,21 @@ As the content is imported, the file containing that content will automatically 
 Example import command:
 curl -i -u"admin:admin" -X POST -F"file=@/Users/sample/Downloads/export/en/community/hiking/calendar/jcr:content.json" http://localhost:4503/services/social/ugc/import?path=/content/geometrixx-outdoors/en/community/hiking/calendar/jcr:content/par/calendar
 
-# Importing Profile Score data into 6.1
+# Importing Profile Score data into 6.1+
 1. Build the package "communities-ugc-migration" using maven.
 2. Install the resulting .jar file in /system/console/bundles on a publish node of your AEM 6.1 instance where you wish to import.
 3. Use curl to upload the scores file to the import servlet
 4. Example import command:
 curl -i -u"admin:admin" -X POST -F"file=@/Users/sample/Downloads/socialScores.json" http://localhost:4503/services/social/scores/import
 
-# Importing Social Graph data into 6.1
+# Importing Social Graph data into 6.1+
 1. Build the package "communities-ugc-migration" using maven.
 2. Install the resulting .jar file in /system/console/bundles on a publish node of your AEM 6.1 instance where you wish to import.
 3. Use curl to upload the social graph file to the import servlet
 Example import command:
 curl -i -u"admin:admin" -X POST -F"file=@/Users/sample/Downloads/socialGraph.json" http://localhost:4503/services/social/graph/import
 
-# Importing Messages into 6.1
+# Importing Messages into 6.1+
 1. Build the package "communities-ugc-migration" using maven.
 2. Install the resulting .jar file in /system/console/bundles on a publish node of your AEM 6.1 instance where you wish to import.
 3. Use curl to upload the messages archive file to the import servlet
