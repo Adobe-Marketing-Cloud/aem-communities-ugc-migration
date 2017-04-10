@@ -42,6 +42,7 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.jackrabbit.api.security.user.Authorizable;
 import org.apache.jackrabbit.api.security.user.Group;
+import org.apache.jackrabbit.api.security.user.User;
 import org.apache.jackrabbit.api.security.user.UserManager;
 import org.apache.sling.api.resource.ModifiableValueMap;
 import org.apache.sling.api.resource.ModifyingResourceProvider;
@@ -883,17 +884,9 @@ public class UGCImportHelper {
     public static void checkUserPrivileges(final ResourceResolver resolver, final ResourceResolverFactory rrf)
             throws ServletException {
 
-        // determine whether the current session belongs to the group administrators
-        final UserManager um = resolver.adaptTo(UserManager.class);
-        try {
-            final Authorizable adminGroup = um.getAuthorizable("administrators");
-            final Authorizable user = resolver.adaptTo(Authorizable.class);
-            final Group administrators = (Group) adminGroup;
-            if (!administrators.isMember(user)) {
-                throw new ServletException("Insufficient access");
-            }
-        } catch (final RepositoryException e) {
-            throw new ServletException("Cannot access repository", e);
+        final User user = resolver.adaptTo(User.class);
+        if (!user.isAdmin()) {
+            throw new ServletException("Insufficient access");
         }
     }
 
