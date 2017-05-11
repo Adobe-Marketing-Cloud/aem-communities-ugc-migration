@@ -23,6 +23,26 @@
     var UPLOAD_AND_IMPORT_SERVLET = Granite.HTTP.getContextPath() + "/services/social/ugc/upload";
 
     $(function() {
+
+        function fileSelectSuccess(event) {
+            /*event.preventDefault();
+            var $target = $(event.currentTarget);
+            var $form = $target.closest("form");
+            var postData = new FormData();
+            var input  = $('input', $form);
+            $("#basePath").val(input[0].files[0].toString());*/
+            alert("Hello World!");
+        }
+
+        var fileSelect = $("#myFileUpload");
+
+        var selectListeners = function () {
+            fileSelect.off("fileselected");
+            fileSelect.on("fileselected", fileSelectSuccess);
+        };
+        Coral.commons.ready(fileSelect, selectListeners);
+
+
         var select = new CUI.Select({ element: 'span.scf-js-file-selection-box' });
         $('section.wait-box').hide();
         //populate the file-selection drop-down list with all currently stored files
