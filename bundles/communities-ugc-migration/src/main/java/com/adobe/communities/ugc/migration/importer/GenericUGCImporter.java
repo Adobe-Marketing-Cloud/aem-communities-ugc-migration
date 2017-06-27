@@ -125,7 +125,7 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                 final JsonParser jsonParser = new JsonFactory().createParser(inputStream);
                 jsonParser.nextToken(); // get the first token
 
-                importFile(jsonParser, resource, resolver);
+                importFile(jsonParser, resource, resolver, request);
             } else if (fileRequestParameters[0].getFileName().endsWith(".zip")) {
                 ZipInputStream zipInputStream;
                 try {
@@ -149,7 +149,7 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
 
                         final JsonParser jsonParser = new JsonFactory().createParser(zipInputStream);
                         jsonParser.nextToken(); // get the first token
-                        importFile(jsonParser, resource, resolver);
+                        importFile(jsonParser, resource, resolver, request);
                         zipInputStream.closeEntry();
                         zipEntry = zipInputStream.getNextEntry();
                         counter++;
@@ -199,7 +199,7 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
                     final JsonParser jsonParser = new JsonFactory().createParser(inputStream);
                     jsonParser.nextToken(); // get the first token
 
-                    importFile(jsonParser, resource, resolver);
+                    importFile(jsonParser, resource, resolver, request);
                     ImportFileUploadServlet.deleteResource(fileResource);
                     return;
                 }
@@ -215,11 +215,12 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
      * @throws ServletException
      * @throws IOException
      */
-    protected void importFile(final JsonParser jsonParser, final Resource resource, final ResourceResolver resolver)
+    protected void importFile(final JsonParser jsonParser, final Resource resource, final ResourceResolver resolver, final SlingHttpServletRequest request)
             throws ServletException, IOException {
         final UGCImportHelper importHelper = new UGCImportHelper();
         JsonToken token1 = jsonParser.getCurrentToken();
         importHelper.setSocialUtils(socialUtils);
+        importHelper.setRequest(request);
         if (token1.equals(JsonToken.START_OBJECT)) {
             jsonParser.nextToken();
             if (jsonParser.getCurrentName().equals(ContentTypeDefinitions.LABEL_CONTENT_TYPE)) {
