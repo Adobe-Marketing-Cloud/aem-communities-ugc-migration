@@ -44,6 +44,7 @@ import org.apache.jackrabbit.api.security.user.Authorizable;
 import org.apache.jackrabbit.api.security.user.Group;
 import org.apache.jackrabbit.api.security.user.User;
 import org.apache.jackrabbit.api.security.user.UserManager;
+import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.resource.ModifiableValueMap;
 import org.apache.sling.api.resource.ModifyingResourceProvider;
 import org.apache.sling.api.resource.PersistenceException;
@@ -103,6 +104,8 @@ public class UGCImportHelper {
 
     private SocialResourceProvider resProvider;
 
+    private SlingHttpServletRequest request;
+
     /**
      * These values ought to come from com.adobe.cq.social.calendar.CalendarConstants, but that class isn't in the
      * uberjar, so I'll define the constants here instead.
@@ -151,6 +154,12 @@ public class UGCImportHelper {
     public void setSocialUtils(final SocialUtils socialUtils) {
         if (this.socialUtils == null)
             this.socialUtils = socialUtils;
+    }
+
+    public void setRequest(final SlingHttpServletRequest request) {
+        if (this.request == null) {
+            this.request = request;
+        }
     }
 
     public Resource extractResource(final JsonParser parser, final SocialResourceProvider provider,
@@ -474,6 +483,7 @@ public class UGCImportHelper {
         }
         final Map<String, Object> properties = new HashMap<String, Object>();
         properties.put("social:key", jsonParser.getCurrentName());
+        properties.put("contextPath", request.getContextPath());
         Resource post = null;
         jsonParser.nextToken();
         if (jsonParser.getCurrentToken().equals(JsonToken.START_OBJECT)) {

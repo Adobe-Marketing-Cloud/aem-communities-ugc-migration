@@ -233,7 +233,7 @@ public class ImportFileUploadServlet extends GenericUGCImporter {
         final ZipInputStream zipInputStream = new ZipInputStream(uploadedFileInputStream);
 
         try {
-            saveExplodedFiles(resolver, folder, writer, zipInputStream, request.getParameter("basePath"));
+            saveExplodedFiles(resolver, folder, writer, zipInputStream, request.getParameter("basePath"), request);
             // close our JSONWriter
             writer.endArray();
             writer.endObject();
@@ -250,7 +250,7 @@ public class ImportFileUploadServlet extends GenericUGCImporter {
     }
 
     private void saveExplodedFiles(final ResourceResolver resolver, final Resource folder, final JSONWriter writer,
-        final ZipInputStream zipInputStream, final String basePath) throws ServletException {
+        final ZipInputStream zipInputStream, final String basePath, final SlingHttpServletRequest request) throws ServletException {
 
         // we need the closeShieldInputStream to prevent the zipInputStream from being closed during resolver.create()
         final CloseShieldInputStream closeShieldInputStream = new CloseShieldInputStream(zipInputStream);
@@ -314,7 +314,7 @@ public class ImportFileUploadServlet extends GenericUGCImporter {
                                     resource = resolver.getResource(resName.substring(0, resName.lastIndexOf("/")));
                                 }
                                 try {
-                                    importFile(jsonParser, resource, resolver);
+                                    importFile(jsonParser, resource, resolver, request);
                                     toDelete.add(file);
                                 } catch (final Exception e) {
                                     // add the file name to our response ONLY if we failed to import it
@@ -454,7 +454,7 @@ public class ImportFileUploadServlet extends GenericUGCImporter {
                     final JsonParser jsonParser = new JsonFactory().createParser(inputStream);
                     jsonParser.nextToken(); // get the first token
 
-                    importFile(jsonParser, resource, serviceUserResolver);
+                    importFile(jsonParser, resource, serviceUserResolver, request);
                     deleteResource(fileResource);
                     return;
                 }
