@@ -52,12 +52,12 @@ public class ImageUploadUtil {
                         String importedImgUrl = null;
 
                         // Use filter if specified
-                        if (include != null && imgUrl.contains(include)) {
+                        if (!StringUtils.isEmpty(include) && imgUrl.contains(include)) {
                             importedImgUrl = importImageToJcr(resourceResolver, imgUrl);
                         }
 
                         // No filter, just import image
-                        if (include == null) {
+                        if (StringUtils.isEmpty(include)) {
                             importedImgUrl = importImageToJcr(resourceResolver, imgUrl);
                         }
 
@@ -79,14 +79,14 @@ public class ImageUploadUtil {
 
         String jcrPath = null;
         HttpClient client = new DefaultHttpClient();
-        HttpGet get = new HttpGet(url);
+        HttpGet get = new HttpGet(url.replaceAll(" ", "%20"));
         HttpResponse response = null;
 
         // Download image
         try {
             response = client.execute(get);
-        } catch (IOException e) {
-            LOG.error("Error while downloading image.", e);
+        } catch (Exception e) {
+            LOG.error("Error while downloading image: " + url, e);
         }
 
         // If the response was successful, proceed with moving image into JCR
