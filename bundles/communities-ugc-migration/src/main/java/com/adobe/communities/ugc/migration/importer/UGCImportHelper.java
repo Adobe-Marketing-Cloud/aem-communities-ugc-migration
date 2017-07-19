@@ -44,6 +44,7 @@ import org.apache.jackrabbit.api.security.user.Authorizable;
 import org.apache.jackrabbit.api.security.user.Group;
 import org.apache.jackrabbit.api.security.user.User;
 import org.apache.jackrabbit.api.security.user.UserManager;
+import org.apache.jackrabbit.vault.util.MimeTypes;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.resource.ModifiableValueMap;
 import org.apache.sling.api.resource.ModifyingResourceProvider;
@@ -944,7 +945,8 @@ public class UGCImportHelper {
          * @return file extension
          */
         public String getType() {
-            return filename.substring(filename.lastIndexOf('.'));
+            int index = filename.lastIndexOf('.');
+            return index > -1 ? filename.substring(index) : getExtensionFromMimeType();
         }
 
         /**
@@ -952,7 +954,8 @@ public class UGCImportHelper {
          * @return content MIME type extension from file Name.
          */
         public String getTypeFromFileName() {
-            return filename.substring(filename.lastIndexOf('.'));
+            int index = filename.lastIndexOf('.');
+            return index > -1 ? filename.substring(index) : getExtensionFromMimeType();
         }
 
         /**
@@ -961,6 +964,10 @@ public class UGCImportHelper {
          */
         public long getSize() {
             return size;
+        }
+
+        private String getExtensionFromMimeType() {
+            return "." + MimeTypes.getExtension(mimeType);
         }
     }
 }
