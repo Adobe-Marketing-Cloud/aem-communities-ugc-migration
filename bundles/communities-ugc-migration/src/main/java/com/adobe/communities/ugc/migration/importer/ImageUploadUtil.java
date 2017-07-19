@@ -7,6 +7,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.util.EntityUtils;
+import org.apache.jackrabbit.commons.JcrUtils;
 import org.apache.sling.api.resource.ResourceResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,10 +23,15 @@ public class ImageUploadUtil {
 
     private static final Logger LOG = LoggerFactory.getLogger(ImageUploadUtil.class);
 
-    private static String IMAGE_ELEMENT = "img";
+    private static String IMAGE_ELEMENT = "<img";
     private static String SRC = "src";
     private static String SRC_ELEMENT = SRC + "=";
-    private static final String TEMP_IMAGE_DIR = "/content/usergenerated/tmp/social/images/";
+
+    private static String UGC_ROOT_DIR = "/content/usergenerated";
+    private static String TEMP_ROOT_DIR = "tmp";
+    private static String SOCIAL_DIR = "social";
+    private static String IMAGES_DIR = "images";
+    private static String TEMP_DIR = UGC_ROOT_DIR + "/" + TEMP_ROOT_DIR + "/" + SOCIAL_DIR + "/" + IMAGES_DIR;
 
     /**
      * Parses the input string for any embedded images (<img>). If any embedded images are found,
@@ -40,11 +46,12 @@ public class ImageUploadUtil {
             int startPos = 0;
             int index = -1;
 
-            while ((index = StringUtils.indexOf(modified, SRC_ELEMENT, startPos)) >= 0) {
+            while ((index = StringUtils.indexOf(modified, IMAGE_ELEMENT, startPos)) >= 0) {
                 startPos = index + 1;
-
-                int imgStartPos = StringUtils.indexOf(modified, "\"", index);
-                if (imgStartPos > 0) {
+                int imageElementEnd = StringUtils.indexOf(modified, ">", index);
+                int indexSrc = StringUtils.indexOf(modified, SRC_ELEMENT, index);
+                int imgStartPos = StringUtils.indexOf(modified, "\"", indexSrc);
+                if (imgStartPos > 0 && imgStartPos< imageElementEnd) {
                     int imgEndPos = StringUtils.indexOf(modified, "\"", imgStartPos + 1);
                     if (imgEndPos > 0) {
                         String imgUrl = StringUtils.substring(modified, imgStartPos + 1, imgEndPos);
@@ -73,7 +80,7 @@ public class ImageUploadUtil {
     }
 
     private static String importImageToJcr(final ResourceResolver resourceResolver, final String url) {
-        if (url == null || StringUtils.isEmpty(url) || url.startsWith(TEMP_IMAGE_DIR)) {
+        if (url == null || StringUtils.isEmpty(url) || url.startsWith(TEMP_DIR)) {
             return null;
         }
 
@@ -92,7 +99,12 @@ public class ImageUploadUtil {
         // If the response was successful, proceed with moving image into JCR
         if (response != null && (response.getStatusLine().getStatusCode() >= 200 && response.getStatusLine().getStatusCode() <= 299)) {
             byte[] content = null;
-            Node parentNode = resourceResolver.getResource(TEMP_IMAGE_DIR).adaptTo(Node.class);
+            Node parentNode = null;
+            try {
+                parentNode = getUgcImagesNode(resourceResolver);
+            } catch (RepositoryException e) {
+                LOG.error("Error getting UGC images node.", e);
+            }
 
             try {
                 content = EntityUtils.toByteArray(response.getEntity());
@@ -145,8 +157,6 @@ public class ImageUploadUtil {
             extension = ".svg";
         }
 
-        LOG.info("extension");
-
         return extension;
     }
 
@@ -159,5 +169,18 @@ public class ImageUploadUtil {
         buf = buf.append(text, 0, startIndex + 1).append(replacement).append(text.substring(startIndex + length));
 
         return buf.toString();
+    }
+
+    private static Node getUgcImagesNode(ResourceResolver resolver) throws RepositoryException {
+        Node ugcNode = resolver.getResource(UGC_ROOT_DIR).adaptTo(Node.class);
+        Node ret = null;
+        if (ugcNode != null) {
+            Node tmpNode = JcrUtils.getOrAddFolder(ugcNode, TEMP_ROOT_DIR);
+            Node socialNode = JcrUtils.getOrAddFolder(tmpNode, SOCIAL_DIR);
+            Node imageNode = JcrUtils.getOrAddFolder(socialNode, IMAGES_DIR);
+            ret = imageNode;
+        }
+
+        return ret;
     }
 }
