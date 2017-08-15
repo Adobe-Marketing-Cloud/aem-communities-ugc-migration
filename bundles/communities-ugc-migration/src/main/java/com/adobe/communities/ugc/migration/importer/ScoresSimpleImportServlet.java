@@ -18,7 +18,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.jcr.RepositoryException;
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -98,8 +97,6 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
 
         Resource componentResource = resolver.getResource(resourcePath); // CRX node path to the communities site passed via the URL
         Resource scoreRuleResource = resolver.getResource(resourcePath + "/jcr:content"); // Child node to the communities page where scoringRules are applied
-//        ValueMap valueMap = scoreRuleResource.adaptTo(ValueMap.class);
-//        String scoringRule = valueMap.get("scoringRules", ""); //scoringRules property value being fetched
 
         while (!jsonToken.equals(JsonToken.END_OBJECT)) {
             String authId = jsonParser.getCurrentName();
@@ -111,7 +108,6 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
                 log.info("auth_id:" + authId + "& Score:" + score);
                 log.info("Component Resource:" + componentResource);
                 log.info("Score Rule Resource:" + scoreRuleResource);
-//                log.info("Scoring Rule:" + scoringRule);
 
                 jsonToken = jsonParser.nextToken();
             } catch (RepositoryException e) {
