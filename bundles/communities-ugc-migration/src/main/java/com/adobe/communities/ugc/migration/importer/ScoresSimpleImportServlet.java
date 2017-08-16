@@ -57,14 +57,18 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
             throws ServletException, IOException {
 
         ResourceResolver resolver = request.getResourceResolver();
-
         UGCImportHelper.checkUserPrivileges(resolver, resourceResolver);
-
         final RequestParameter[] fileRequestParameters = request.getRequestParameters("file");
-        String resourcePath = request.getParameter("path");
 
-        if (fileRequestParameters != null && fileRequestParameters.length > 0 
-            && !fileRequestParameters[0].isFormField() 
+        String resourcePath = "";
+        if(!request.getParameter("path").equals(null) && !request.getParameter("path").equals("")){
+            resourcePath = request.getParameter("path");
+        } else {
+            log.info("Invalid communities-page JCR content path");
+            System.exit(0);
+        }
+
+        if (fileRequestParameters != null && fileRequestParameters.length > 0 && !fileRequestParameters[0].isFormField()
             && fileRequestParameters[0].getFileName().endsWith(".json")) {
                 
             final InputStream inputStream = fileRequestParameters[0].getInputStream();
@@ -77,8 +81,6 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
                     readJsonUserScore(jsonParser, resolver, resourcePath);
                 } catch (RepositoryException e) {
                     throw new ServletException("Unable to communicate with Jcr repository", e);
-                } catch (NullPointerException ex) {
-                    throw new ServletException("Invalid JCR content path to the communities page");
                 }
             } else {
                 throw new ServletException("Expected a start object token, got " + token);
@@ -86,9 +88,7 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
         } else {
             log.info("Invalid file");
         }
-
     }
-
 
     private void readJsonUserScore(final JsonParser jsonParser, ResourceResolver resolver, String resourcePath)
             throws ServletException, IOException {
@@ -97,20 +97,27 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
 
         Resource componentResource = resolver.getResource(resourcePath);
         Resource scoreRuleResource = resolver.getResource(resourcePath + "/jcr:content");
+        ValueMap valueMap = scoreRuleResource.adaptTo(ValueMap.class);
+        String scoringProperty = valueMap.get("scoringRules", "");
 
-        while (!jsonToken.equals(JsonToken.END_OBJECT)) {
-            String authId = jsonParser.getCurrentName();
-            jsonToken = jsonParser.nextToken();
-            Long score = jsonParser.getValueAsLong();
+        if (!scoringProperty.equals(null) && !scoringProperty.equals("")) {
 
-            try {
-                scoringService.saveScore(resolver, authId, componentResource, scoreRuleResource, score);
+            while (!jsonToken.equals(JsonToken.END_OBJECT)) {
+                String authId = jsonParser.getCurrentName();
                 jsonToken = jsonParser.nextToken();
-            } catch (RepositoryException e) {
-                e.printStackTrace();
-            }
-        }
-        log.info("Score Rule Resource:" + scoreRuleResource);
-    }
+                Long score = jsonParser.getValueAsLong();
 
+                try {
+                    scoringService.saveScore(resolver, authId, componentResource, scoreRuleResource, score);
+                    jsonToken = jsonParser.nextToken();
+                } catch (RepositoryException e) {
+                    throw new ServletException("Unable to communicate with Jcr repository", e);
+                }
+            }
+            log.info("Score Rule Resource:" + scoreRuleResource + " was used to import the scores.");
+
+        } else {
+            log.info("'scoringRules' property can't be found at path: " + resourcePath + "/jcr:content. Apply to appropriate node for scores import.");
+        }
+    }
 }
