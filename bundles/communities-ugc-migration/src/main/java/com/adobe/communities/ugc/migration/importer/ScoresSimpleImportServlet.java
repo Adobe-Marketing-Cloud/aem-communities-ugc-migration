@@ -61,7 +61,7 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
         UGCImportHelper.checkUserPrivileges(resolver, resourceResolver);
 
         final RequestParameter[] fileRequestParameters = request.getRequestParameters("file");
-        String resourcePath = request.getParameter("path"); //get the path passed via query parameter 'path'
+        String resourcePath = request.getParameter("path");
 
         if (fileRequestParameters != null && fileRequestParameters.length > 0 
             && !fileRequestParameters[0].isFormField() 
@@ -69,7 +69,7 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
                 
             final InputStream inputStream = fileRequestParameters[0].getInputStream();
             final JsonParser jsonParser = new JsonFactory().createParser(inputStream);
-            JsonToken token = jsonParser.nextToken(); // get the first token
+            JsonToken token = jsonParser.nextToken();
             
             if (token.equals(JsonToken.START_OBJECT)) {
                 try {
@@ -78,7 +78,7 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
                 } catch (RepositoryException e) {
                     throw new ServletException("Unable to communicate with Jcr repository", e);
                 } catch (NullPointerException ex) {
-                    throw new ServletException("Please enter the path to the communities page in the url using query parameter 'path'");
+                    throw new ServletException("Invalid JCR content path to the communities page");
                 }
             } else {
                 throw new ServletException("Expected a start object token, got " + token);
@@ -95,8 +95,8 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
 
         JsonToken jsonToken = jsonParser.nextToken();
 
-        Resource componentResource = resolver.getResource(resourcePath); // CRX node path to the communities site passed via the URL
-        Resource scoreRuleResource = resolver.getResource(resourcePath + "/jcr:content"); // Child node to the communities page where scoringRules are applied
+        Resource componentResource = resolver.getResource(resourcePath);
+        Resource scoreRuleResource = resolver.getResource(resourcePath + "/jcr:content");
 
         while (!jsonToken.equals(JsonToken.END_OBJECT)) {
             String authId = jsonParser.getCurrentName();
@@ -105,17 +105,12 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
 
             try {
                 scoringService.saveScore(resolver, authId, componentResource, scoreRuleResource, score);
-                log.info("auth_id:" + authId + "& Score:" + score);
-                log.info("Component Resource:" + componentResource);
-                log.info("Score Rule Resource:" + scoreRuleResource);
-
                 jsonToken = jsonParser.nextToken();
             } catch (RepositoryException e) {
                 e.printStackTrace();
-            } catch (NullPointerException ex) {
-                throw new ServletException("Please enter the path to the communities page in the url using query parameter 'path'");
             }
         }
+        log.info("Score Rule Resource:" + scoreRuleResource);
     }
 
 }
