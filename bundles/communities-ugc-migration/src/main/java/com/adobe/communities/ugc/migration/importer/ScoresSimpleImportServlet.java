@@ -64,7 +64,7 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
         if(!request.getParameter("path").equals(null) && !request.getParameter("path").equals("")){
             resourcePath = request.getParameter("path");
         } else {
-            log.info("Invalid communities-page JCR content path");
+            log.error("Invalid communities-page JCR content path");
             System.exit(0);
         }
 
@@ -86,7 +86,7 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
                 throw new ServletException("Expected a start object token, got " + token);
             }
         } else {
-            log.info("Invalid file");
+            log.error("Invalid file");
         }
     }
 
@@ -117,7 +117,7 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
             log.info("Score Rule Resource:" + scoreRuleResource + " was used to import the scores.");
 
         } else {
-            log.info("'scoringRules' property can't be found at path: " + resourcePath + "/jcr:content. Apply to appropriate node for scores import.");
+            log.error("'scoringRules' property can't be found at path: " + resourcePath + "/jcr:content. Apply to appropriate node for scores import.");
         }
     }
 }
