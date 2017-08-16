@@ -61,11 +61,10 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
         final RequestParameter[] fileRequestParameters = request.getRequestParameters("file");
 
         String resourcePath = "";
-        if(!request.getParameter("path").equals(null) && !request.getParameter("path").equals("")){
+        if(request.getParameter("path") != null && !request.getParameter("path").equals("")){
             resourcePath = request.getParameter("path");
         } else {
-            log.error("Invalid communities-page JCR content path");
-            System.exit(0);
+            throw new ServletException("Invalid communities-page JCR content path");
         }
 
         if (fileRequestParameters != null && fileRequestParameters.length > 0 && !fileRequestParameters[0].isFormField()
@@ -100,7 +99,7 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
         ValueMap valueMap = scoreRuleResource.adaptTo(ValueMap.class);
         String scoringProperty = valueMap.get("scoringRules", "");
 
-        if (!scoringProperty.equals(null) && !scoringProperty.equals("")) {
+        if (scoringProperty != null && !scoringProperty.equals("")) {
 
             while (!jsonToken.equals(JsonToken.END_OBJECT)) {
                 String authId = jsonParser.getCurrentName();
