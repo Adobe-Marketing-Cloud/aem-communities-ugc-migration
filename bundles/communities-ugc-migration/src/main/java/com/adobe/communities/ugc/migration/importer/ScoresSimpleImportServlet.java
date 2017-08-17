@@ -64,7 +64,7 @@ public class ScoresSimpleImportServlet extends SlingAllMethodsServlet {
         if(request.getParameter("path") != null && !request.getParameter("path").equals("")){
             resourcePath = request.getParameter("path");
         } else {
-            throw new ServletException("Invalid communities-page JCR content path");
+            throw new ServletException("No communities-page path entered");
         }
 
         if (fileRequestParameters != null && fileRequestParameters.length > 0 && !fileRequestParameters[0].isFormField()
