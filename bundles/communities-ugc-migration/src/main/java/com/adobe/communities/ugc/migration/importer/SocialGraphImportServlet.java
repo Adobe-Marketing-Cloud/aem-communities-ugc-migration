@@ -16,6 +16,7 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.jcr.RepositoryException;
 import javax.servlet.ServletException;
 
 import org.apache.felix.scr.annotations.Component;
@@ -23,6 +24,7 @@ import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
+import org.apache.jackrabbit.api.security.user.User;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.request.RequestParameter;
@@ -39,6 +41,8 @@ import com.adobe.cq.social.scf.SocialComponentFactoryManager;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Component(label = "UGC Migration Social Graph Importer",
         description = "Accepts a json file containing social graph data and applies it to stored profiles",
@@ -46,6 +50,8 @@ import com.fasterxml.jackson.core.JsonToken;
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/graph/import")})
 public class SocialGraphImportServlet extends SlingAllMethodsServlet {
+
+    private static final Logger LOG = LoggerFactory.getLogger(SocialGraphImportServlet.class);
 
     @Reference
     private ResourceResolverFactory rrf;
@@ -104,20 +110,26 @@ public class SocialGraphImportServlet extends SlingAllMethodsServlet {
                 props.put("resourceType", Following.RESOURCE_TYPE);
                 props.put("userId", userId);
                 props.put("followedId", jsonParser.getValueAsString());
-                Resource resource;
-                resource = request.getResourceResolver().create(tmpParent, "following", props);
-                final SocialComponentFactory factory =
-                    componentFactoryManager.getSocialComponentFactory(Following.RESOURCE_TYPE);
-                final Following following = (Following) factory.getSocialComponent(resource, request);
-                request.getResourceResolver().delete(resource); // need to delete it so we can create it again next time
-                final Vertex node = following.userNode();
-                final Vertex other = following.followedNode();
-                final String relType = "USER";
-                try {
-                    node.createRelationshipTo(other, Edge.FOLLOWING_RELATIONSHIP_TYPE, relType);
-                    following.socialGraph().save();
-                } catch (final IllegalArgumentException e) {
-                    // The relationship already exists. Do nothing.
+
+                User user = UGCImportHelper.getUser(userId, request.getResourceResolver());
+                if (user != null) {
+                    Resource resource;
+                    resource = request.getResourceResolver().create(tmpParent, "following", props);
+                    final SocialComponentFactory factory =
+                        componentFactoryManager.getSocialComponentFactory(Following.RESOURCE_TYPE);
+                    final Following following = (Following) factory.getSocialComponent(resource, request);
+                    request.getResourceResolver().delete(resource); // need to delete it so we can create it again next time
+                    final Vertex node = following.userNode();
+                    final Vertex other = following.followedNode();
+                    final String relType = "USER";
+                    try {
+                        node.createRelationshipTo(other, Edge.FOLLOWING_RELATIONSHIP_TYPE, relType);
+                        following.socialGraph().save();
+                    } catch (final IllegalArgumentException e) {
+                        // The relationship already exists. Do nothing.
+                    }
+                } else {
+                    LOG.warn("Attempted to import social graph for user that does not exist: " + userId);
                 }
                 token = jsonParser.nextToken();
             }

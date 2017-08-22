@@ -900,6 +900,18 @@ public class UGCImportHelper {
         }
     }
 
+    public static User getUser(final String userId, final ResourceResolver resolver) {
+        UserManager userManager = resolver.adaptTo(UserManager.class);
+        User user = null;
+        try {
+            user = (User) userManager.getAuthorizable(userId);
+        } catch (RepositoryException e) {
+            LOG.error("Error getting user: " + userId, e);
+        }
+
+        return user;
+    }
+
     private static String randomHexString() {
         Random rand = new Random();
         int hexInt = rand.nextInt(0X10000);
