@@ -46,10 +46,10 @@ public class ImageUploadUtil {
             int startPos = 0;
             int index = -1;
 
-            while ((index = StringUtils.indexOf(modified, IMAGE_ELEMENT, startPos)) >= 0) {
+            while ((index = StringUtils.indexOfIgnoreCase(modified, IMAGE_ELEMENT, startPos)) >= 0) {
                 startPos = index + 1;
                 int imageElementEnd = StringUtils.indexOf(modified, ">", index);
-                int indexSrc = StringUtils.indexOf(modified, SRC_ELEMENT, index);
+                int indexSrc = StringUtils.indexOfIgnoreCase(modified, SRC_ELEMENT, index);
                 int imgStartPos = StringUtils.indexOf(modified, "\"", indexSrc);
                 if (imgStartPos > 0 && imgStartPos< imageElementEnd) {
                     int imgEndPos = StringUtils.indexOf(modified, "\"", imgStartPos + 1);
