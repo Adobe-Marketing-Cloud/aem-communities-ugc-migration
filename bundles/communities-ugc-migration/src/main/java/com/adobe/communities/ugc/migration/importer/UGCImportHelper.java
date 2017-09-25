@@ -107,6 +107,9 @@ public class UGCImportHelper {
 
     private SlingHttpServletRequest request;
 
+    private boolean importImages = false;
+
+    private String importImagesSrc = null;
     /**
      * These values ought to come from com.adobe.cq.social.calendar.CalendarConstants, but that class isn't in the
      * uberjar, so I'll define the constants here instead.
@@ -161,6 +164,14 @@ public class UGCImportHelper {
         if (this.request == null) {
             this.request = request;
         }
+    }
+
+    public void setImportImages(final boolean importImages) {
+        this.importImages = importImages;
+    }
+
+    public void setImportImagesSrc(final String importImagesSrc) {
+        this.importImagesSrc = importImagesSrc;
     }
 
     public Resource extractResource(final JsonParser parser, final SocialResourceProvider provider,
@@ -505,7 +516,7 @@ public class UGCImportHelper {
                         if (value.equals("true") || value.equals("false")) {
                             properties.put(label, jsonParser.getValueAsBoolean());
                         } else {
-                            final String decodedValue = URLDecoder.decode(value, "UTF-8");
+                            String decodedValue = URLDecoder.decode(value, "UTF-8");
                             if (label.equals("language")) {
                                 properties.put("mtlanguage", decodedValue);
                             } else {
@@ -513,6 +524,9 @@ public class UGCImportHelper {
                                 if (label.equals("userIdentifier")) {
                                     author = decodedValue;
                                 } else if (label.equals("jcr:description")) {
+                                    if (importImages) {
+                                        decodedValue = ImageUploadUtil.importImage(resolver, decodedValue, importImagesSrc);
+                                    }
                                     properties.put("message", decodedValue);
                                 }
                             }

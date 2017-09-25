@@ -215,12 +215,18 @@ public class GenericUGCImporter extends SlingAllMethodsServlet {
      * @throws ServletException
      * @throws IOException
      */
-    protected void importFile(final JsonParser jsonParser, final Resource resource, final ResourceResolver resolver, final SlingHttpServletRequest request)
+    protected void importFile(final JsonParser jsonParser, final Resource resource, final ResourceResolver resolver,
+                              final SlingHttpServletRequest request)
             throws ServletException, IOException {
         final UGCImportHelper importHelper = new UGCImportHelper();
         JsonToken token1 = jsonParser.getCurrentToken();
         importHelper.setSocialUtils(socialUtils);
         importHelper.setRequest(request);
+        final String importImagesStr = (request.getRequestParameter("importImages") != null) ? request.getRequestParameter("importImages").getString() : null;
+        final String importImagesSrc = (request.getRequestParameter("importImagesSrc") != null) ? request.getRequestParameter("importImagesSrc").getString() : null;
+        final boolean importImages = "true".equals(importImagesStr);
+        importHelper.setImportImages(importImages);
+        importHelper.setImportImagesSrc(importImagesSrc);
         if (token1.equals(JsonToken.START_OBJECT)) {
             jsonParser.nextToken();
             if (jsonParser.getCurrentName().equals(ContentTypeDefinitions.LABEL_CONTENT_TYPE)) {
