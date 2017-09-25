@@ -84,6 +84,11 @@ public class ImageUploadUtil {
             return null;
         }
 
+        // Don't import images from file system
+        if (url.startsWith("file://")) {
+            return null;
+        }
+
         String jcrPath = null;
         HttpClient client = new DefaultHttpClient();
         HttpGet get = new HttpGet(url.replaceAll(" ", "%20"));
