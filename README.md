@@ -15,6 +15,8 @@ Steps to migrate :
 	- Make a HTTP POST call to http://<host>:<port>/libs/social/upgrade/templateMigrationServlet.json with ADMIN credentials.
 	- Verify the logs if the migration completed successfully. 
 	- Start the instance.
+	- Validate from crx/de that /etc/community/templates is empty and existing templates are moved to /conf/global/settings/community/templates.
+
 
 # communities-ugc-migration
 AEM Communities UGC Migration Tool
