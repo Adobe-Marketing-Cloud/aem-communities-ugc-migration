@@ -1,3 +1,21 @@
+
+# communities-template-migration
+
+AEM Communities Upgrade Template Migration
+Communities template miggratiom migrates custom templates (email, sites, groups, functions) from /etc/community/templates to /conf/global/settings/community/templates.
+This migration is required for a customer upgrading to 6.4 or higher version from 6.3 or lower version. The templates are backward compatible and will work without migration as well but
+the new templates will still be created under /etc only.
+
+Steps to migrate :
+
+1. build communities-template-migration bundle.
+2. On each of the author and publish instances:
+	- Stop the instance.
+	- install the communities-template-migration bundle.
+	- Make a HTTP POST call to http://<host>:<port>/libs/social/upgrade/templateMigrationServlet.json with ADMIN credentials.
+	- Verify the logs if the migration completed successfully. 
+	- Start the instance.
+
 # communities-ugc-migration
 AEM Communities UGC Migration Tool
 
