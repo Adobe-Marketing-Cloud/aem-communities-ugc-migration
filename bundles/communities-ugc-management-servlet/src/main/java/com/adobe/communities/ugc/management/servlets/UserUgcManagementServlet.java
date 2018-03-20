@@ -19,6 +19,8 @@
 package com.adobe.communities.ugc.management.servlets;
 
 import com.adobe.cq.social.scf.OperationException;
+import com.adobe.cq.social.user.ugc.management.api.UserUgcManagement;
+import org.apache.commons.lang.StringUtils;
 import org.apache.felix.scr.annotations.*;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
@@ -44,32 +46,57 @@ import java.io.IOException;
 public class UserUgcManagementServlet extends SlingAllMethodsServlet {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
+    private final static String UGC_MANAGEMENT_PROPERTY_NAME = "Enabled UGC Management";
+    private final String GET_USER_UGC_OPERATION = "getugc";
+    private final String DELETE_USER_UGC_OPERATION = "deleteUgc";
+    private final String DELETE_USER_OPERATION = "deleteUser";
 
     @Reference
-    private com.adobe.cq.social.user.ugc.management.api.UserUgcManagement userUgcManagement;
+    private UserUgcManagement userUgcManagement;
 
-    @Property(name = "Enabled UGC Management", boolValue = false, description = "Enable UGC Management")
+    @Property(name = UGC_MANAGEMENT_PROPERTY_NAME, boolValue = false, description = "Enable UGC Management")
     private static volatile boolean ENABLED;
 
+    /**
+     *
+     * @param context Component Context to read properties
+     */
     @Activate
     private void config(final ComponentContext context){
-        ENABLED = (Boolean) context.getProperties().get("Enabled UGC Management");
+        ENABLED = (Boolean) context.getProperties().get(UGC_MANAGEMENT_PROPERTY_NAME);
         logger.info("UGC Management ENABLED " + ENABLED);
     }
 
+    /**
+     * Handles get calls
+     * @param req Sling request
+     * @param resp Response to be returned
+     * @throws ServletException
+     * @throws IOException
+     */
     @Override
     protected void doGet(final SlingHttpServletRequest req,
                          final SlingHttpServletResponse resp) throws ServletException, IOException {
+        /*
+        Continue execution only if configuration is enabled
+         */
         if (ENABLED){
             final ResourceResolver resourceResolver = req.getResourceResolver();
             String user = req.getParameter("user");
             String operation = req.getParameter("operation");
-            if (user != null && operation.equalsIgnoreCase("getugc")) {
+            /*
+                Validate parameters in request and execute getUserUgc if operation parameter
+                in request is getugc
+                 */
+            if (StringUtils.isNotBlank(user) && StringUtils.isNotBlank(operation) && operation.equalsIgnoreCase(GET_USER_UGC_OPERATION)) {
                 resp.setContentType("application/octet-stream");
                 final String headerKey = "Content-Disposition";
                 final String headerValue = "attachment; filename=\"" + user + "-UgcData.zip" + "\"";
                 resp.setHeader(headerKey, headerValue);
                 try {
+                    /*
+                    getUserUgc method updates the reference to outputStream provided as third parameter
+                     */
                     userUgcManagement.getUserUgc(resourceResolver, user, resp.getOutputStream());
                 } catch (OperationException e) {
                     logger.error("Operation exception", e);
@@ -92,17 +119,31 @@ public class UserUgcManagementServlet extends SlingAllMethodsServlet {
         }
     }
 
+    /**
+     * Handles post calls
+     * @param req Sling Request
+     * @param resp Response
+     * @throws ServletException
+     * @throws IOException
+     */
     @Override
     protected void doPost(final SlingHttpServletRequest req,
                           final SlingHttpServletResponse resp) throws ServletException, IOException {
+        /*
+        Continue execution only if configuration is enabled
+         */
         if (ENABLED){
             final ResourceResolver resourceResolver = req.getResourceResolver();
             String user = req.getParameter("user");
             String operation = req.getParameter("operation");
             try {
-                if(user != null && operation.equalsIgnoreCase("deleteUgc")) {
+                /*
+                Validate parameters in request and execute either deleteUserUgc or deleteUserAccount
+                depending operation parameter in request
+                 */
+                if (StringUtils.isNotBlank(user) && StringUtils.isNotBlank(operation) && operation.equalsIgnoreCase(DELETE_USER_UGC_OPERATION)) {
                     userUgcManagement.deleteUserUgc(resourceResolver, user);
-                } else if (user != null && operation.equalsIgnoreCase("deleteUser")){
+                } else if (StringUtils.isNotBlank(user) && StringUtils.isNotBlank(operation) && operation.equalsIgnoreCase(DELETE_USER_OPERATION)) {
                     userUgcManagement.deleteUserAccount(resourceResolver, user);
                 }
                 else{
