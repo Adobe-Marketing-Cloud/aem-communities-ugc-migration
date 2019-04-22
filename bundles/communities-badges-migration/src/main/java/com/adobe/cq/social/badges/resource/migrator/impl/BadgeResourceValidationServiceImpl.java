@@ -146,11 +146,12 @@ public class BadgeResourceValidationServiceImpl implements BadgeResourceValidati
 
 		UserBadgeUtils badgeUtils = new UserBadgeUtils(resourceResolver, badgingService, authId);
 		CommunityContext communityContext = resource.adaptTo(CommunityContext.class);
+		boolean isValid = true;
 		if (communityContext != null && StringUtils.isBlank(communityContext.getSiteId())) {
 			communityContext = null;
 		}
 		List<UserProfileBadge> allBadges = badgeUtils.getBadges(communityContext, BadgingService.ALL_BADGES);
-		
+
 		Set<String> userBadgesSet = new HashSet<String>();
 		for (UserProfileBadge badge:allBadges){
 			String badgePath = badge.getUserBadgeResource().getValueMap().get("badgeContentPath", String.class);
@@ -160,7 +161,7 @@ public class BadgeResourceValidationServiceImpl implements BadgeResourceValidati
 			}else{
 				userBadgesSet.add(badgePath);
 			}
-			     
+
 		}
 		for (UserProfileBadge badge:allBadges) {
 			Resource badgeResource = badge.getUserBadgeResource();
@@ -169,15 +170,17 @@ public class BadgeResourceValidationServiceImpl implements BadgeResourceValidati
 			String newBadgeContentPath = BadgesMigrationUtils.getNewBadgeContentPath(currentBadgeContentPath, resourceResolver);
 			if(currentBadgeContentPath.startsWith("/etc") && !userBadgesSet.contains(newBadgeContentPath)){
 				log.info("Validation failed: userid:{} badgePath:{}", authId , currentBadgeContentPath);
+				isValid = false;
 			}
 		}
-		log.info("Validation Passed: userid:{}",authId);
-		
+
+		if(isValid) {
+	        log.info("Validation Passed: userid:{}",authId);
+		}
+
 	}
 
-	
-	
-	
+
 
 	private  SocialResourceProvider getSRP(final ResourceResolver resolver, final Resource componentResource) {
 		if (componentResource == null) {
