@@ -14,8 +14,13 @@ import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.adobe.granite.activitystreams.Activity;
 import com.adobe.granite.xss.XSSAPI;
 import org.apache.commons.io.IOUtils;
+import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
-import org.apache.felix.scr.annotations.*;
+import org.apache.felix.scr.annotations.Property;
+import org.apache.felix.scr.annotations.Service;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.ReferenceCardinality;
+import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.Resource;
@@ -31,10 +36,12 @@ import javax.jcr.Session;
 import javax.jcr.query.Query;
 import javax.servlet.ServletException;
 import java.io.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 
 
-@Component(label = "UGC Importer for All UGC Data",
+@Component(label = "UGC Exporter for All UGC Data",
         description = "Moves ugc data within json files into the active SocialResourceProvider", specVersion = "1.1")
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/notification/export")})
@@ -116,7 +123,6 @@ public class NotificationExportServlet extends SlingAllMethodsServlet {
 
     private void exportNotificationToFile(final SlingHttpServletRequest request, BufferedOutputStream bos){
         ResourceResolver resolver = request.getResourceResolver();
-        resolver.getUserID() ;
         responseWriter = new OutputStreamWriter(bos);
         List<String> users = new ArrayList<String>();
         try {

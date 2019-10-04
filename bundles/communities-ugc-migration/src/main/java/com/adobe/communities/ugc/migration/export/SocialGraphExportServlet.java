@@ -36,7 +36,7 @@ import java.io.IOException;
 @Component(label = "Social Graph Exporter",
         description = "Moves social graph schema into a zip archive for storage or re-import", specVersion = "1.1")
 @Service
-@Properties({@Property(name = "sling.servlet.paths", value = "/services/social/graph/msrp/export")})
+@Properties({@Property(name = "sling.servlet.paths", value = "/services/social/graph/content/export")})
 
 public class SocialGraphExportServlet extends SlingSafeMethodsServlet {
 
@@ -54,13 +54,13 @@ public class SocialGraphExportServlet extends SlingSafeMethodsServlet {
         final String path = StringUtils.stripEnd(request.getRequestParameter("path").getString(), "/");
         final String relType =request.getRequestParameter("relType") !=null ? request.getRequestParameter("relType").toString():null;
         final String typeS =request.getRequestParameter("typeS") !=null ? request.getRequestParameter("typeS").toString():null;
-       
+
         if(relType == null || typeS ==null ){
         	logger.error("Required parameters are not present. Exiting");
         	throw new ServletException("Required parameters are not present. Exiting");
         }
-        
-        
+
+
         final Resource userRoot = request.getResourceResolver().getResource(path);
         if (null == userRoot) {
             throw new ServletException("Cannot locate a valid resource at " + path);

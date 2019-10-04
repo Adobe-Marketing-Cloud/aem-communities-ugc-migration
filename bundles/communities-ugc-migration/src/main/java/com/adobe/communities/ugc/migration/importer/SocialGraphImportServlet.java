@@ -48,7 +48,7 @@ import org.slf4j.LoggerFactory;
         description = "Accepts a json file containing social graph data and applies it to stored profiles",
         specVersion = "1.1")
 @Service
-@Properties({@Property(name = "sling.servlet.paths", value = "/services/social/graph/msrp/import")})
+@Properties({@Property(name = "sling.servlet.paths", value = "/services/social/graph/content/import")})
 public class SocialGraphImportServlet extends SlingAllMethodsServlet {
 
     private static final Logger LOG = LoggerFactory.getLogger(SocialGraphImportServlet.class);

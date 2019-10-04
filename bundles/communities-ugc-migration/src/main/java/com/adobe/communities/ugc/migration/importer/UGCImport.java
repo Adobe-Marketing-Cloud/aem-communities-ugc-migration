@@ -44,6 +44,26 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                 }
             }
             jsonObject.put(Constants.TARGET,map) ;
+
+
+            JSONObject objectMap  = jsonObject.optJSONObject(Constants.OBJECT) ;
+            if(objectMap != null ){
+                String oldId = objectMap.optString(Constants.ID);
+                String newId = idMap.get(oldId) != null ?idMap.get(oldId) :"" ;
+
+                if(!StringUtils.isBlank(newId)) {
+                    objectMap.put(Constants.ID, newId) ;
+                }
+
+                String oldlatestActivityPath = objectMap.optString(Constants.LATEST_ACTIVITY_PATH);
+                String newlatestActivityPath = idMap.get(oldlatestActivityPath) != null ?idMap.get(oldlatestActivityPath) :"" ;
+
+                if(!StringUtils.isBlank(newlatestActivityPath)) {
+                    objectMap.put(Constants.LATEST_ACTIVITY_PATH, newlatestActivityPath);
+                }
+
+            }
+            jsonObject.put(Constants.OBJECT,objectMap) ;
         } catch (JSONException e) {
             logger.error("Unable to map ids during import",e);
         }
@@ -123,7 +143,7 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                }
            }
        } catch (JSONException e) {
-           e.printStackTrace();
+           logger.error("error occured while importing ugc ",e);
        }
           return (toStart - start);
 

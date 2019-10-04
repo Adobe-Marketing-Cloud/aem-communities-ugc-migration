@@ -6,7 +6,10 @@ public class Constants {
     public static final String NOTIFICATION  = "notifications";
     public static final String OBJECT_ID = "objectid_s" ;
     public static final String TARGET = "target" ;
+    public static final String OBJECT = "object" ;
+
     public static final String ID = "id";
+
 
     public static final String ID_MAPPING_FILE = "idMapping";
     public static final String DATA_FILE = "data";
@@ -15,5 +18,7 @@ public class Constants {
 
     public static String ACTIVITY_STREAM_PATH = "/content/sites/activitystreams";
     public static String ACTIVITY_STREAM_NAME = "community";
+
+    public static String LATEST_ACTIVITY_PATH = "latestActivityPath_s" ;
 
 }

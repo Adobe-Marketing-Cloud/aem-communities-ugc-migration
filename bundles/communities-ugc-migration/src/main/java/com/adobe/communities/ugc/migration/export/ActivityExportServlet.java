@@ -8,23 +8,28 @@ import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.adobe.granite.activitystreams.Activity;
 import com.adobe.granite.xss.XSSAPI;
 import org.apache.commons.io.IOUtils;
-import org.apache.felix.scr.annotations.*;
+import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Properties;
+import org.apache.felix.scr.annotations.Property;
+import org.apache.felix.scr.annotations.Service;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.ReferenceCardinality;
+import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
+import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.io.JSONWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import java.io.*;
-import java.util.HashMap;
-import java.util.Map;
 
 
-@Component(label = "UGC Importer for acttvity Data",
+@Component(label = "UGC Exporter for activity Data",
         description = "Moves activity data within json files", specVersion = "1.1")
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/activity/export")})
@@ -100,36 +105,46 @@ public class ActivityExportServlet extends SlingAllMethodsServlet {
             BufferedOutputStream bos) {
 
         ResourceResolver resolver = request.getResourceResolver();
-        resolver.getUserID();
         Resource streamResource = resolver.resolve(Constants.ACTIVITY_STREAM_PATH);
-        SocialActivityStream stream = socialActivityManager.getSocialStream(streamResource, Constants.ACTIVITY_STREAM_NAME, true);
+        if(streamResource != null) {
+            SocialActivityStream stream = socialActivityManager.getSocialStream(streamResource, Constants.ACTIVITY_STREAM_NAME, true);
+            if(stream != null) {
+                responseWriter = new OutputStreamWriter(bos);
+                try {
+                    JSONWriter jsonWriter = new JSONWriter(responseWriter);
+                    jsonWriter.setTidy(true);
+                    jsonWriter.object();
+                    jsonWriter.key(Constants.ACTIVITIES);
+                    jsonWriter.array();
+                    Integer readCount = 0;
+                    Integer index = 0;
+                    do {
+                        readCount = 0;
+                        int offset = fetchCount * index;
+                        logger.info("reading from offset= {} fetchCount = {}", offset, fetchCount);
+                        for (Activity a : stream.getActivities(offset, fetchCount)) {
+                            if(a != null) {
+                                readCount++ ;
+                                jsonWriter.value(a.toJSON());
+                            }
+                        }
+                        logger.info("read successfully from offset= {} fetchCount = {}", offset, fetchCount);
+                        index++;
+                    } while (readCount.compareTo(fetchCount) == 0);
 
-        responseWriter = new OutputStreamWriter(bos);
-        try {
-            JSONWriter jsonWriter = new JSONWriter(responseWriter);
-            jsonWriter.setTidy(true);
-            jsonWriter.object();
-            jsonWriter.key(Constants.ACTIVITIES);
-            jsonWriter.array();
-            Integer readCount = 0;
-            Integer index = 0;
-            do {
-                readCount = 0 ;
-                int offset = fetchCount*index ;
-                logger.info("reading from offset= {} fetchCount = {}", offset,fetchCount);
-                for (Activity a : stream.getActivities(offset, fetchCount)) {
-                    readCount++ ;
-                    jsonWriter.value(a.toJSON());
+                    jsonWriter.endArray();
+                    jsonWriter.endObject();
+                    responseWriter.flush();
+                } catch (JSONException e) {
+                    logger.error("exception occured while fetching activites from stream ", e);
+                }catch(Exception e){
+                    logger.error("exception occured while fetching activites from stream ", e);
                 }
-                logger.info("read successfully from offset= {} fetchCount = {}" ,offset, fetchCount);
-                index++ ;
-            }while(readCount.compareTo(fetchCount) == 0) ;
-
-            jsonWriter.endArray();
-            jsonWriter.endObject();
-            responseWriter.flush();
-        } catch (Exception e) {
-            logger.error("exception occured while fetching activites from stream ",e);
+            }else{
+                logger.error("stream object is null while exporting activity");
+            }
+        }else{
+            logger.error("stream resource object is null while exporting activity");
         }
     }
 
