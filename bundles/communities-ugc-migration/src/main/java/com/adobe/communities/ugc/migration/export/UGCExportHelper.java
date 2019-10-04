@@ -116,6 +116,13 @@ public class UGCExportHelper {
         List<String> attachments = null;
         Integer flagAllowCount = -1;
         String coverimage = null;
+
+        String socialKey =  (String)vm.get("social:key");
+        String id = (String)vm.get("id") ;
+        if(socialKey  != null && id != null && socialKey.equalsIgnoreCase(id) == false){
+            GenericExportServlet.keyValueMap.put(id,socialKey) ;
+        }
+
         for (final Map.Entry<String, Object> prop : vm.entrySet()) {
             final Object value = prop.getValue();
             if (value instanceof String[]) {
@@ -280,6 +287,13 @@ public class UGCExportHelper {
         final JSONArray timestampFields = new JSONArray();
         List<String> attachments = null;
         Integer flagAllowCount = -1;
+
+        String socialKey =  (String)vm.get("social:key");
+        String id = (String)vm.get("id") ;
+        if(socialKey  != null && id != null && socialKey.equalsIgnoreCase(id) == false){
+            GenericExportServlet.keyValueMap.put(id,socialKey) ;
+        }
+
         for (final Map.Entry<String, Object> prop : vm.entrySet()) {
             final Object value = prop.getValue();
             if (value instanceof String[]) {
