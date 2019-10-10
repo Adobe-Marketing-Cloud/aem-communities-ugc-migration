@@ -105,8 +105,8 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
     }
 
 
-     Map<String, List<String>> loadMetaInfo(final RequestParameter requestParam){
-        Map<String,List<String>> idMap = new HashMap() ;
+     Map<String, Map<String,String>> loadMetaInfo(final RequestParameter requestParam){
+        Map<String,Map<String,String>> idMap = new HashMap() ;
 
         InputStream inputStream = null;
         DataInputStream dataInputStream = null;
@@ -121,12 +121,10 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                     String[] keyValues = line.split("=");
                     String values[] = keyValues[1].split(",") ;
 
-                    LinkedList<String> linkedList = new LinkedList<String>()  ;
-                    for(String value : values){
-                        linkedList.add(value) ;
-                    }
-
-                    idMap.put(keyValues[0],linkedList);
+                    Map<String,String> valuesMap = new HashMap<String, String>()  ;
+                    valuesMap.put(Constants.NEW_ID,values[0]);
+                    valuesMap.put(Constants.ENTITY_URL,values[1]);
+                    idMap.put(keyValues[0],valuesMap);
                 }
             }
         }catch(Exception e){

@@ -24,4 +24,8 @@ public class Constants {
     public static final String URL = "url";
     public static final String LATESTACTIVITYPATH_S = "latestActivityPath_s" ;
 
+
+    public static final String ENTITY_URL = "entity_url";
+    public static final String NEW_ID = "new_id" ;
+
 }

@@ -21,6 +21,7 @@ import javax.jcr.RepositoryException;
 import javax.servlet.ServletException;
 
 import com.adobe.communities.ugc.migration.util.Constants;
+import org.apache.commons.lang.StringUtils;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -62,7 +63,7 @@ public class SocialGraphImportServlet extends  UGCImport {
     @Reference
     private SocialComponentFactoryManager componentFactoryManager;
 
-    private Map<String, List<String>> keyValueMap = new HashMap() ;
+    private Map<String, Map<String,String>> keyValueMap = new HashMap() ;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -129,9 +130,9 @@ public class SocialGraphImportServlet extends  UGCImport {
             final Resource tmpParent = request.getResourceResolver().getResource("/tmp");
             while (!token.equals(JsonToken.END_ARRAY)) {
                 String followedId = jsonParser.getValueAsString() ;
-                List<String> valuesList = keyValueMap.get(jsonParser.getValueAsString()) ;
-                if(valuesList != null && valuesList.isEmpty() == false && valuesList.get(0) != null){
-                    followedId = valuesList.get(0);
+                Map<String,String> valueMap = keyValueMap.get(jsonParser.getValueAsString()) ;
+                if(valueMap != null && StringUtils.isNotBlank(valueMap.get(Constants.NEW_ID))){
+                    followedId = valueMap.get(Constants.NEW_ID);
                     logger.info("using followerID = {} for oldFollowerId= {}" ,followedId,jsonParser.getValueAsString()) ;
                 }
                 final Map<String, Object> props = new HashMap<String, Object>();
