@@ -14,6 +14,7 @@ package com.adobe.communities.ugc.migration.importer;
 import java.io.*;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import javax.jcr.RepositoryException;
@@ -61,7 +62,7 @@ public class SocialGraphImportServlet extends  UGCImport {
     @Reference
     private SocialComponentFactoryManager componentFactoryManager;
 
-    private Map<String, LinkedList<String>> keyValueMap = new HashMap() ;
+    private Map<String, List<String>> keyValueMap = new HashMap() ;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -128,7 +129,7 @@ public class SocialGraphImportServlet extends  UGCImport {
             final Resource tmpParent = request.getResourceResolver().getResource("/tmp");
             while (!token.equals(JsonToken.END_ARRAY)) {
                 String followedId = jsonParser.getValueAsString() ;
-                LinkedList<String> valuesList = keyValueMap.get(jsonParser.getValueAsString()) ;
+                List<String> valuesList = keyValueMap.get(jsonParser.getValueAsString()) ;
                 if(valuesList != null && valuesList.isEmpty() == false && valuesList.get(0) != null){
                     followedId = valuesList.get(0);
                     logger.info("using followerID = {} for oldFollowerId= {}" ,followedId,jsonParser.getValueAsString()) ;

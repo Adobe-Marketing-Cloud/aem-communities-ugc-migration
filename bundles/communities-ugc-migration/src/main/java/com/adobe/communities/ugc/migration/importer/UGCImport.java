@@ -19,10 +19,7 @@ import java.io.DataInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
+import java.util.*;
 
 public abstract class  UGCImport extends SlingAllMethodsServlet {
 
@@ -118,8 +115,8 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
     }
 
 
-     Map<String, LinkedList<String>> loadMetaInfo(final RequestParameter requestParam){
-        Map<String,LinkedList<String>> idMap = new HashMap() ;
+     Map<String, List<String>> loadMetaInfo(final RequestParameter requestParam){
+        Map<String,List<String>> idMap = new HashMap() ;
 
         InputStream inputStream = null;
         DataInputStream dataInputStream = null;
@@ -134,8 +131,9 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                     String keyValues[] = line.split("=");
                     String values[] = keyValues[1].split(",") ;
                     LinkedList<String> linkedList = new LinkedList<String>()  ;
-                    linkedList.add(values[0]) ;
-                    linkedList.add(values[1]) ;
+                    for(String value : values){
+                        linkedList.add(value) ;
+                    }
                     idMap.put(keyValues[0],linkedList);
                 }
             }
