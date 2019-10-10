@@ -88,10 +88,13 @@ public class SocialGraphImportServlet extends  UGCImport {
             LOG.error("Required parameters are not present. Exiting");
             throw new ServletException("Required parameters are not present. Exiting");
         }
-
-        RequestParameterMap paramMap = request.getRequestParameterMap();
-        RequestParameter metaFileParam = paramMap.getValue(Constants.ID_MAPPING_FILE);
-        keyValueMap  = loadMetaInfo(metaFileParam);
+        try {
+            RequestParameterMap paramMap = request.getRequestParameterMap();
+            RequestParameter metaFileParam = paramMap.getValue(Constants.ID_MAPPING_FILE);
+            keyValueMap = loadMetaInfo(metaFileParam);
+        }catch(Exception e){
+            logger.error("error occured while computing keyvalue map",e);
+        }
 
         if (fileRequestParameters != null && fileRequestParameters.length > 0
                 && !fileRequestParameters[0].isFormField()

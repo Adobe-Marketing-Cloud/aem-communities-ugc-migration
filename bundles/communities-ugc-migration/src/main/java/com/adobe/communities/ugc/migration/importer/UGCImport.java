@@ -19,10 +19,9 @@ import java.io.DataInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+
+import java.util.*;
+
 
 public abstract class  UGCImport extends SlingAllMethodsServlet {
 
@@ -121,10 +120,12 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                 while ((line = br.readLine()) != null) {
                     String[] keyValues = line.split("=");
                     String values[] = keyValues[1].split(",") ;
-                    //tODO : have apply loop
-                    List<String> linkedList = new LinkedList<String>()  ;
-                    linkedList.add(values[0]) ;
-                    linkedList.add(values[1]) ;
+
+                    LinkedList<String> linkedList = new LinkedList<String>()  ;
+                    for(String value : values){
+                        linkedList.add(value) ;
+                    }
+
                     idMap.put(keyValues[0],linkedList);
                 }
             }
