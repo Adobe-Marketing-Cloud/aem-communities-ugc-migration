@@ -13,6 +13,7 @@ package com.adobe.communities.ugc.migration.importer;
 
 import java.io.*;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 
 import javax.jcr.RepositoryException;
@@ -28,6 +29,7 @@ import org.apache.jackrabbit.api.security.user.User;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.request.RequestParameter;
+import org.apache.sling.api.request.RequestParameterMap;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
 import org.apache.sling.api.resource.ResourceResolverFactory;
@@ -49,7 +51,7 @@ import org.slf4j.LoggerFactory;
         specVersion = "1.1")
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/graph/content/import")})
-public class SocialGraphImportServlet extends SlingAllMethodsServlet {
+public class SocialGraphImportServlet extends  UGCImport {
 
     private static final Logger LOG = LoggerFactory.getLogger(SocialGraphImportServlet.class);
 
@@ -59,7 +61,7 @@ public class SocialGraphImportServlet extends SlingAllMethodsServlet {
     @Reference
     private SocialComponentFactoryManager componentFactoryManager;
 
-    private Map<String,String> keyValueMAp = new HashMap<String, String>() ;
+    private Map<String, LinkedList<String>> keyValueMap = new HashMap() ;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -86,7 +88,9 @@ public class SocialGraphImportServlet extends SlingAllMethodsServlet {
             throw new ServletException("Required parameters are not present. Exiting");
         }
 
-        loadMap(request);
+        RequestParameterMap paramMap = request.getRequestParameterMap();
+        RequestParameter metaFileParam = paramMap.getValue(Constants.ID_MAPPING_FILE);
+        keyValueMap  = loadMetaInfo(metaFileParam);
 
         if (fileRequestParameters != null && fileRequestParameters.length > 0
                 && !fileRequestParameters[0].isFormField()
@@ -121,8 +125,9 @@ public class SocialGraphImportServlet extends SlingAllMethodsServlet {
             final Resource tmpParent = request.getResourceResolver().getResource("/tmp");
             while (!token.equals(JsonToken.END_ARRAY)) {
                 String followedId = jsonParser.getValueAsString() ;
-                if(keyValueMAp.get(jsonParser.getValueAsString()) != null){
-                    followedId = keyValueMAp.get(jsonParser.getValueAsString());
+                LinkedList<String> valuesList = keyValueMap.get(jsonParser.getValueAsString()) ;
+                if(valuesList != null && valuesList.isEmpty() == false && valuesList.get(0) != null){
+                    followedId = valuesList.get(0);
                     logger.info("using followerID = {} for oldFollowerId= {}" ,followedId,jsonParser.getValueAsString()) ;
                 }
                 final Map<String, Object> props = new HashMap<String, Object>();
@@ -159,28 +164,6 @@ public class SocialGraphImportServlet extends SlingAllMethodsServlet {
                 token = jsonParser.nextToken();
             }
             token = jsonParser.nextToken(); // skip over END_ARRAY
-        }
-    }
-
-    private void loadMap(final SlingHttpServletRequest request){
-        try {
-            keyValueMAp = new HashMap<String, String>() ;
-            final RequestParameter[] keyValueFileRequestParameters = request.getRequestParameters(Constants.ID_MAPPING_FILE);
-
-            if (keyValueFileRequestParameters != null && keyValueFileRequestParameters.length > 0) {
-
-                final InputStream inputStream = keyValueFileRequestParameters[0].getInputStream();
-                DataInputStream in = new DataInputStream(inputStream);
-                BufferedReader br = new BufferedReader(new InputStreamReader(in));
-                String line = null;
-                while ((line = br.readLine()) != null) {
-                    String values[] = line.split("=");
-                    keyValueMAp.put(values[0], values[1]);
-                    logger.info("oldkey = {} newKey= {}" ,values[0],values[1]) ;
-                }
-            }
-        }catch(Exception e){
-            logger.error("excpetion occured while loading map",e);
         }
     }
 }
