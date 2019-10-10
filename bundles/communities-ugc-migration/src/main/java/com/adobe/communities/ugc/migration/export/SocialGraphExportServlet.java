@@ -38,7 +38,7 @@ import javax.servlet.ServletException;
 import java.io.*;
 
 @Component(label = "Social Graph Exporter",
-        description = "Moves social graph schema into a zip archive for storage or re-import", specVersion = "1.1")
+        description = "Moves social graph schema into a  json for storage or re-import", specVersion = "1.1")
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/graph/content/export")})
 

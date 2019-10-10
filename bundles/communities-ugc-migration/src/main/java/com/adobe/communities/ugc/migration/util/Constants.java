@@ -19,6 +19,9 @@ public class Constants {
     public static String ACTIVITY_STREAM_PATH = "/content/sites/activitystreams";
     public static String ACTIVITY_STREAM_NAME = "community";
 
-    public static String LATEST_ACTIVITY_PATH = "latestActivityPath_s" ;
+    public static final String REFERER = "referer" ;
+    public static final String Referer = "Referer";
+    public static final String URL = "url";
+    public static final String LATESTACTIVITYPATH_S = "latestActivityPath_s" ;
 
 }

@@ -3,24 +3,19 @@ package com.adobe.communities.ugc.migration.export;
 import com.adobe.communities.ugc.migration.util.Constants;
 import com.adobe.cq.social.activitystreams.api.SocialActivityManager;
 import com.adobe.cq.social.activitystreams.api.SocialActivityStream;
-import com.adobe.cq.social.notifications.api.NotificationManager;
 import com.adobe.cq.social.notifications.client.api.SocialNotification;
-import com.adobe.cq.social.scf.ClientUtilityFactory;
 import com.adobe.cq.social.ugc.api.ComparisonType;
 import com.adobe.cq.social.ugc.api.Operator;
 import com.adobe.cq.social.ugc.api.UgcFilter;
 import com.adobe.cq.social.ugc.api.ValueConstraint;
 import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.adobe.granite.activitystreams.Activity;
-import com.adobe.granite.xss.XSSAPI;
 import org.apache.commons.io.IOUtils;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.felix.scr.annotations.Reference;
-import org.apache.felix.scr.annotations.ReferenceCardinality;
-import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.Resource;
@@ -42,22 +37,10 @@ import java.util.List;
 
 
 @Component(label = "UGC Exporter for All UGC Data",
-        description = "Moves ugc data within json files into the active SocialResourceProvider", specVersion = "1.1")
+        description = "Moves notifications data within json files", specVersion = "1.1")
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/notification/export")})
 public class NotificationExportServlet extends SlingAllMethodsServlet {
-
-    @Reference
-    private NotificationManager notioficationManagerImpl ;
-
-    @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY, policy = ReferencePolicy.STATIC)
-    private XSSAPI xss;
-
-    @Reference
-    private SocialUtils socialUtils;
-
-    @Reference
-    private ClientUtilityFactory clientUtilFactory;
 
     private Writer responseWriter;
 
@@ -68,7 +51,7 @@ public class NotificationExportServlet extends SlingAllMethodsServlet {
     @Reference
     private SocialActivityManager activityStreamManager;
 
-    public static final String DEFAULT_USER_ACTIVITIES_STREAM_NAME = "notifications";
+    public static final String DEFAULT_USER_NOTIFICATIONS_STREAM_NAME = "notifications";
 
     protected void doGet(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
             throws ServletException, IOException {
@@ -128,7 +111,7 @@ public class NotificationExportServlet extends SlingAllMethodsServlet {
         try {
             users = getAllUsers(request);
         } catch (Exception e) {
-            logger.error("error occured while reading users");
+            logger.error("error occured while reading users",e);
 
         }
         try {
@@ -148,7 +131,7 @@ public class NotificationExportServlet extends SlingAllMethodsServlet {
                         int offset = fetchCount * index;
                         SocialActivityStream stream =
                                 (SocialActivityStream) activityStreamManager.getUserStream(resolver, user,
-                                        DEFAULT_USER_ACTIVITIES_STREAM_NAME, false);
+                                        DEFAULT_USER_NOTIFICATIONS_STREAM_NAME, false);
                         UgcFilter filter = new UgcFilter();
                         final ValueConstraint<String> resourceFilter =
                                 new ValueConstraint<String>(SocialUtils.PN_SLING_RESOURCETYPE, SocialNotification.RESOURCE_TYPE,

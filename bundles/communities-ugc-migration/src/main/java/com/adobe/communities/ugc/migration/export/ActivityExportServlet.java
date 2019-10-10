@@ -3,18 +3,9 @@ package com.adobe.communities.ugc.migration.export;
 import com.adobe.communities.ugc.migration.util.Constants;
 import com.adobe.cq.social.activitystreams.api.SocialActivityManager;
 import com.adobe.cq.social.activitystreams.api.SocialActivityStream;
-import com.adobe.cq.social.scf.ClientUtilityFactory;
-import com.adobe.cq.social.ugcbase.SocialUtils;
 import com.adobe.granite.activitystreams.Activity;
-import com.adobe.granite.xss.XSSAPI;
 import org.apache.commons.io.IOUtils;
-import org.apache.felix.scr.annotations.Component;
-import org.apache.felix.scr.annotations.Properties;
-import org.apache.felix.scr.annotations.Property;
-import org.apache.felix.scr.annotations.Service;
-import org.apache.felix.scr.annotations.Reference;
-import org.apache.felix.scr.annotations.ReferenceCardinality;
-import org.apache.felix.scr.annotations.ReferencePolicy;
+import org.apache.felix.scr.annotations.*;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.Resource;
@@ -35,18 +26,8 @@ import java.io.*;
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/activity/export")})
 public class ActivityExportServlet extends SlingAllMethodsServlet {
 
-
-    @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY, policy = ReferencePolicy.STATIC)
-    private XSSAPI xss;
-
     @Reference
-    private SocialUtils socialUtils;
-
-    @Reference
-    ClientUtilityFactory clientUtilFactory;
-
-    @Reference
-    SocialActivityManager socialActivityManager ;
+    private SocialActivityManager socialActivityManager ;
 
     private Writer responseWriter;
 
@@ -70,7 +51,6 @@ public class ActivityExportServlet extends SlingAllMethodsServlet {
 
             FileOutputStream fos = new FileOutputStream(outFile);
             BufferedOutputStream bos = new BufferedOutputStream(fos);
-            //loadMap(request) ;
             exportToFile(request,bos) ;
 
             OutputStream outStream = null;
@@ -106,10 +86,15 @@ public class ActivityExportServlet extends SlingAllMethodsServlet {
 
         ResourceResolver resolver = request.getResourceResolver();
         Resource streamResource = resolver.resolve(Constants.ACTIVITY_STREAM_PATH);
+
         if(streamResource != null) {
+
             SocialActivityStream stream = socialActivityManager.getSocialStream(streamResource, Constants.ACTIVITY_STREAM_NAME, true);
+
             if(stream != null) {
+
                 responseWriter = new OutputStreamWriter(bos);
+
                 try {
                     JSONWriter jsonWriter = new JSONWriter(responseWriter);
                     jsonWriter.setTidy(true);
@@ -136,7 +121,7 @@ public class ActivityExportServlet extends SlingAllMethodsServlet {
                     jsonWriter.endObject();
                     responseWriter.flush();
                 } catch (JSONException e) {
-                    logger.error("exception occured while fetching activites from stream ", e);
+                    logger.error("json exception occured while fetching activites from stream ", e);
                 }catch(Exception e){
                     logger.error("exception occured while fetching activites from stream ", e);
                 }
@@ -147,6 +132,4 @@ public class ActivityExportServlet extends SlingAllMethodsServlet {
             logger.error("stream resource object is null while exporting activity");
         }
     }
-
-
 }

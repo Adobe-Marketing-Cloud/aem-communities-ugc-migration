@@ -19,14 +19,16 @@ import java.io.DataInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 
 public abstract class  UGCImport extends SlingAllMethodsServlet {
 
     Logger logger = LoggerFactory.getLogger(UGCImport.class);
 
-     JSONObject getUpdateJsonObjectWithNewIDs(Map<String, String> idMap, JSONObject jsonObject){
+    JSONObject getUpdateJsonObjectWithNewIDs(Map<String, String> idMap, JSONObject jsonObject)  {
         try {
             String objectId = jsonObject.optString(Constants.OBJECT_ID);
 
@@ -34,36 +36,59 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                 jsonObject.put(Constants.OBJECT_ID,idMap.get(objectId) ) ;
             }
 
+            //target id
             JSONObject map  = jsonObject.optJSONObject(Constants.TARGET) ;
-            if(map != null ){
-                String oldId = map.optString(Constants.ID);
-                String newId = idMap.get(oldId) != null ?idMap.get(oldId) :"" ;
+            String referer = "";
+            String Referer = "";
+            String randomID = "";
 
-                if(!StringUtils.isBlank(newId)) {
+            if(map != null ) {
+                String oldId = map.optString(Constants.ID);
+                String newId = idMap.get(oldId) != null ? idMap.get(oldId) : "";
+
+                if (!StringUtils.isBlank(newId)) {
                     map.put(Constants.ID, newId);
+
+                    String[] spits = StringUtils.split(newId, "/");
+                    randomID = spits[spits.length -1];
                 }
+
+                map.put(Constants.LATESTACTIVITYPATH_S, objectId);
+
+                referer = map.optString(Constants.Referer, "") +"/"+ randomID;
+                Referer = map.optString(Constants.REFERER, "") +"/"+ randomID;
+
+
+                JSONObject objectMap  = jsonObject.optJSONObject(Constants.OBJECT) ;
+                if(objectMap != null ) {
+                    oldId = objectMap.optString(Constants.ID);
+                    newId = idMap.get(oldId) != null ? idMap.get(oldId) : "";
+
+                    if (!StringUtils.isBlank(newId)) {
+                        map.put(Constants.ID, newId);
+                    }
+
+                    if (!StringUtils.isBlank(referer)) {
+                        objectMap.put(Constants.REFERER, referer);
+                    }
+
+                    if (!StringUtils.isBlank(Referer)) {
+                        objectMap.put(Constants.REFERER, Referer);
+                    }
+
+                    String oldUrl = map.optString(Constants.URL);
+                    map.put(Constants.URL, referer);
+
+                    logger.info("target->  old url vs new Url[{}, {}]", oldUrl, referer);
+
+                    oldUrl = objectMap.optString(Constants.URL);
+                    logger.info("object->  old url vs new Url[{}, {}]", oldUrl);
+
+
+                }
+                jsonObject.put(Constants.OBJECT, objectMap) ;
             }
             jsonObject.put(Constants.TARGET,map) ;
-
-
-            JSONObject objectMap  = jsonObject.optJSONObject(Constants.OBJECT) ;
-            if(objectMap != null ){
-                String oldId = objectMap.optString(Constants.ID);
-                String newId = idMap.get(oldId) != null ?idMap.get(oldId) :"" ;
-
-                if(!StringUtils.isBlank(newId)) {
-                    objectMap.put(Constants.ID, newId) ;
-                }
-
-                String oldlatestActivityPath = objectMap.optString(Constants.LATEST_ACTIVITY_PATH);
-                String newlatestActivityPath = idMap.get(oldlatestActivityPath) != null ?idMap.get(oldlatestActivityPath) :"" ;
-
-                if(!StringUtils.isBlank(newlatestActivityPath)) {
-                    objectMap.put(Constants.LATEST_ACTIVITY_PATH, newlatestActivityPath);
-                }
-
-            }
-            jsonObject.put(Constants.OBJECT,objectMap) ;
         } catch (JSONException e) {
             logger.error("Unable to map ids during import",e);
         }
@@ -72,8 +97,7 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
 
 
 
-
-     String loadData(final RequestParameter request){
+    String loadData(final RequestParameter request){
         String jsonBody = "";
         InputStream inputStream = null;
         try {
@@ -94,8 +118,8 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
     }
 
 
-     Map<String, String> loadMetaInfo(final RequestParameter requestParam){
-        Map<String,String> idMap = new HashMap() ;
+     Map<String, LinkedList<String>> loadMetaInfo(final RequestParameter requestParam){
+        Map<String,LinkedList<String>> idMap = new HashMap() ;
 
         InputStream inputStream = null;
         DataInputStream dataInputStream = null;
@@ -107,8 +131,12 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                 br = new BufferedReader(new InputStreamReader(dataInputStream));
                 String line;
                 while ((line = br.readLine()) != null) {
-                    String values[] = line.split("=");
-                    idMap.put(values[0], values[1]);
+                    String keyValues[] = line.split("=");
+                    String values[] = keyValues[1].split(",") ;
+                    LinkedList<String> linkedList = new LinkedList<String>()  ;
+                    linkedList.add(values[0]) ;
+                    linkedList.add(values[1]) ;
+                    idMap.put(values[0],linkedList);
                 }
             }
         }catch(Exception e){
