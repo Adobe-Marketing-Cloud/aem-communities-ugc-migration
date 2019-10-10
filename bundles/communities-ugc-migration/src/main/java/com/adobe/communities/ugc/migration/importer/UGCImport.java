@@ -136,7 +136,7 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                     LinkedList<String> linkedList = new LinkedList<String>()  ;
                     linkedList.add(values[0]) ;
                     linkedList.add(values[1]) ;
-                    idMap.put(values[0],linkedList);
+                    idMap.put(keyValues[0],linkedList);
                 }
             }
         }catch(Exception e){
