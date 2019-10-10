@@ -294,7 +294,6 @@ public class UGCExportHelper {
         String entityUrl = (String)vm.get("entity_url") ;
         if(socialKey  != null && id != null && socialKey.equalsIgnoreCase(id) == false){
             GenericExportServlet.keyValueMap.put(id,socialKey +"," + entityUrl) ;
-
         }
 
         for (final Map.Entry<String, Object> prop : vm.entrySet()) {
