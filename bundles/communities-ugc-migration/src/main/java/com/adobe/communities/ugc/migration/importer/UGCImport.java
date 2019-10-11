@@ -12,7 +12,6 @@ import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.commons.json.JSONArray;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.JSONObject;
-import com.adobe.granite.activitystreams.ActivityException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +54,6 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                     }
                 }
 
-
                 if(StringUtils.isNotBlank(newUrl)) {
                     objectMap.put(Constants.URL, findString(newUrl, Constants.CONTENT));
                 }
@@ -85,13 +83,13 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                 logger.info("Below activity data is incomplete\n[{}], Hence ignoring it ", jsonObject);
             }
 
-        } catch (JSONException e) {
-            logger.error("Unable to map ids during import",e);
+            return jsonObject;
+
+        } catch (Exception e) {
+            logger.error("Unable to map ids during import[{}]",e, jsonObject);
+            throw new ActivityException("error during import", e);
         }
-        return jsonObject ;
     }
-
-
 
     String loadData(final RequestParameter request){
         String jsonBody = "";
@@ -151,7 +149,6 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
             if(inputStream != null)
                 IOUtils.closeQuietly(inputStream);
         }
-
         return idMap;
     }
 
@@ -164,7 +161,7 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                final Activity activity = activityManager.newActivity(updatedJson);
                if (activity != null) {
                    if (streamProvider.accept(activity)) {
-                       logger.debug("Appending activity id {}, Object id : {} to streamProvider {} ", activity.getId(), activity.getObject().getId(),
+                       logger.debug("Appending activity id {}, Object id {} to streamProvider {}. Activity Before import[{}]\n, During processing[{}]\n", activity.getId(), activity.getObject().getId(),
                                streamProvider.getClass().getName());
                        streamProvider.append(activity);
                    }
