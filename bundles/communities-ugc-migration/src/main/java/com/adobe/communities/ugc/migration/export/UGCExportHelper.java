@@ -123,8 +123,8 @@ public class UGCExportHelper {
         String referer = (String)vm.get("referer") ;
         if(socialKey  != null && id != null && socialKey.equalsIgnoreCase(id) == false){
             GenericExportServlet.keyValueMap.put(id,socialKey +"," + entityUrl+","+referer) ;
-
         }
+
         for (final Map.Entry<String, Object> prop : vm.entrySet()) {
             final Object value = prop.getValue();
             if (value instanceof String[]) {
@@ -283,7 +283,7 @@ public class UGCExportHelper {
         }
     }
     public static void extractComment(final JSONWriter writer, final Comment post, final ResourceResolver resolver,
-                      final Writer responseWriter, final SocialUtils socialUtils) throws JSONException, IOException {
+                                      final Writer responseWriter, final SocialUtils socialUtils) throws JSONException, IOException {
 
         final ValueMap vm = post.getProperties();
         final JSONArray timestampFields = new JSONArray();
@@ -293,8 +293,9 @@ public class UGCExportHelper {
         String socialKey =  (String)vm.get("social:key");
         String id = (String)vm.get("id") ;
         String entityUrl = (String)vm.get("entity_url") ;
+        String referer = (String)vm.get("referer") ;
         if(socialKey  != null && id != null && socialKey.equalsIgnoreCase(id) == false){
-            GenericExportServlet.keyValueMap.put(id,socialKey +"," + entityUrl) ;
+            GenericExportServlet.keyValueMap.put(id,socialKey +"," + entityUrl+","+referer) ;
         }
 
         for (final Map.Entry<String, Object> prop : vm.entrySet()) {
@@ -354,7 +355,7 @@ public class UGCExportHelper {
         }
         final Iterable<Resource> children = thisResource.getChildren();
         for (final Resource child : children) {
-             // check for votes, flags, or translations
+            // check for votes, flags, or translations
             if (child.isResourceType("social/tally/components/hbs/voting")) {
                 if (!child.hasChildren()) continue;
                 writer.key(ContentTypeDefinitions.LABEL_TALLY);

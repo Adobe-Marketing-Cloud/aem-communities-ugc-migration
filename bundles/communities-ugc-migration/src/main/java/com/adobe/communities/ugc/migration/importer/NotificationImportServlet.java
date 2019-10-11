@@ -52,18 +52,15 @@ public class NotificationImportServlet extends  UGCImport {
         final int start  = startParam !=null ?Integer.parseInt(startParam.getString()):0;
 
         JSONObject json;
-        int importCount = 0;
         try {
             json = new JSONObject(jsonBody);
             JSONArray notifications =json.optJSONArray(Constants.NOTIFICATION) != null
-                                    ? json.optJSONArray(Constants.NOTIFICATION)
-                                    : new JSONArray();
+                    ? json.optJSONArray(Constants.NOTIFICATION)
+                    : new JSONArray();
 
-            importCount =  importUGC(notifications, streamProvider, activityManager, idMap, start);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }finally{
-            logger.info("Notification import metrics[Start: {}, end: {}, imported: {}]", start, (start+ importCount), importCount);
+            importUGC(notifications, streamProvider, activityManager, idMap, start);
+        } catch (Exception e) {
+            logger.error("Error during notification import", e);
         }
     }
 
