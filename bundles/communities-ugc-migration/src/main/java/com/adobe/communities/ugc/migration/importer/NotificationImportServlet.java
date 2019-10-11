@@ -17,7 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 
 @Component(label = "UGC Migration Notification Importer",
@@ -43,7 +42,7 @@ public class NotificationImportServlet extends  UGCImport {
 
         //read meta data
         RequestParameter metaFileParam = paramMap.getValue(Constants.ID_MAPPING_FILE);
-        Map<String, List<String>> idMap = loadMetaInfo(metaFileParam);
+        Map<String, Map<String,String>> idMap = loadMetaInfo(metaFileParam);
 
         //read exported data
         RequestParameter dataFile = paramMap.getValue(Constants.DATA_FILE);

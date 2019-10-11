@@ -27,12 +27,12 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
 
     private final Logger logger = LoggerFactory.getLogger(UGCImport.class);
 
-    private JSONObject getUpdateJsonObjectWithNewIDs(Map<String, List<String>> idMap, JSONObject jsonObject)  {
+    private JSONObject getUpdateJsonObjectWithNewIDs(Map<String, Map<String,String>> idMap, JSONObject jsonObject)  {
         try {
             String objectId = jsonObject.optString(Constants.OBJECT_ID);
 
             //<id, url, referer>
-            List<String> objectNewMapping = getNewMapping(idMap, objectId);
+            Map<String,String> objectNewMapping = getNewMapping(idMap, objectId);
 
             //target id
             JSONObject targetMap  = jsonObject.optJSONObject(Constants.TARGET) ;
@@ -40,8 +40,8 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
 
             if(objectMap != null && targetMap != null){
 
-                String newId = objectNewMapping.get(0);
-                String newUrl = objectNewMapping.get(1);
+                String newId = objectNewMapping.get(Constants.NEW_ID);
+                String newUrl = objectNewMapping.get(Constants.ENTITY_URL);
 
                 if(StringUtils.isNotBlank(newId)){
                     jsonObject.put(Constants.OBJECT_ID, newId) ;
@@ -57,11 +57,12 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                 }
 
 
-                String targetId = targetMap.optString(Constants.ID);
-                List<String> targetNewMapping = getNewMapping(idMap, targetId);
+                String oldTargetId = targetMap.optString(Constants.ID);
+                Map<String,String>  targetNewMapping = getNewMapping(idMap, oldTargetId);
 
-                targetId = targetNewMapping.get(0);
-                String targetUrl = targetNewMapping.get(1);
+                String targetId = targetNewMapping.get(Constants.NEW_ID);
+                String targetUrl = targetNewMapping.get(Constants.ENTITY_URL);
+
                 if (StringUtils.isNotBlank(targetId)) {
                     targetMap.put(Constants.ID, targetId);
                 }
@@ -143,7 +144,7 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
         return idMap;
     }
 
-    int importUGC(JSONArray activities, ActivityStreamProvider streamProvider, SocialActivityManager activityManager, Map<String,List<String>> idMap, int start) {
+    int importUGC(JSONArray activities, ActivityStreamProvider streamProvider, SocialActivityManager activityManager, Map<String,Map<String,String>> idMap, int start) {
        int  toStart = start;
        try {
            for (; toStart < activities.length(); toStart++) {
@@ -165,8 +166,9 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
 
    }
 
-   private List<String> getNewMapping(Map<String, List<String>> idMap, String key){
+   private Map<String,String> getNewMapping(Map<String, Map<String,String>> idMap, String key){
        //<id, url, referer>
-      return  idMap.get(key);
+       Map<String, String> map = idMap.get(key);
+       return map != null ? map:new HashMap<String, String>();
    }
 }
