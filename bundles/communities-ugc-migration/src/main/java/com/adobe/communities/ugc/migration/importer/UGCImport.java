@@ -125,6 +125,7 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                     Map<String,String> valuesMap = new HashMap<String, String>()  ;
                     valuesMap.put(Constants.NEW_ID,values[0]);
                     valuesMap.put(Constants.ENTITY_URL,values[1]);
+                    valuesMap.put(Constants.REFERER,values[2]) ;
                     idMap.put(keyValues[0],valuesMap);
                 }
             }

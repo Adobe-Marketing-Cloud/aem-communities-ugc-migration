@@ -120,8 +120,9 @@ public class UGCExportHelper {
         String socialKey =  (String)vm.get("social:key");
         String id = (String)vm.get("id") ;
         String entityUrl = (String)vm.get("entity_url") ;
+        String referer = (String)vm.get("referer") ;
         if(socialKey  != null && id != null && socialKey.equalsIgnoreCase(id) == false){
-            GenericExportServlet.keyValueMap.put(id,socialKey +"," + entityUrl) ;
+            GenericExportServlet.keyValueMap.put(id,socialKey +"," + entityUrl+","+referer) ;
 
         }
         for (final Map.Entry<String, Object> prop : vm.entrySet()) {
