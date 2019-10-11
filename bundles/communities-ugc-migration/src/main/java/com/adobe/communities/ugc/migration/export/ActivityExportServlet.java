@@ -64,8 +64,10 @@ public class ActivityExportServlet extends SlingAllMethodsServlet {
                 // copy from file to output
                 IOUtils.copy(inStream, outStream);
             } catch (final IOException e) {
+                logger.error("ioexception occured while exporting activities",e);
                 throw new ServletException(e);
             } catch (final Exception e) {
+                logger.error("exception occured while exporting activities",e);
                 throw new ServletException(e);
             } finally {
                 IOUtils.closeQuietly(bos);
@@ -106,14 +108,14 @@ public class ActivityExportServlet extends SlingAllMethodsServlet {
                     do {
                         readCount = 0;
                         int offset = fetchCount * index;
-                        logger.info("reading from offset= {} fetchCount = {}", offset, fetchCount);
+                        logger.info("reading from offset= {} with fetchCount = {}", offset, fetchCount);
                         for (Activity a : stream.getActivities(offset, fetchCount)) {
                             if(a != null) {
                                 readCount++ ;
                                 jsonWriter.value(a.toJSON());
                             }
                         }
-                        logger.info("read successfully from offset= {} fetchCount = {}", offset, fetchCount);
+                        logger.info("read successfully from offset= {} with fetchCount = {}", offset, fetchCount);
                         index++;
                     } while (readCount.compareTo(fetchCount) == 0);
 

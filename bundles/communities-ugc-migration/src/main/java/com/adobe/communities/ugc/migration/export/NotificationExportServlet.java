@@ -83,8 +83,10 @@ public class NotificationExportServlet extends SlingAllMethodsServlet {
                 // copy from file to output
                 IOUtils.copy(inStream, outStream);
             } catch (final IOException e) {
+                logger.error("ioexception occured while exporting activities",e);
                 throw new ServletException(e);
             } catch (final Exception e) {
+                logger.error("exception occured while exporting activities",e);
                 throw new ServletException(e);
             } finally {
                 IOUtils.closeQuietly(bos);
@@ -136,19 +138,19 @@ public class NotificationExportServlet extends SlingAllMethodsServlet {
                         filter.addConstraint(resourceFilter);
 
                         if (stream != null) {
-                            logger.info("reading notification for user = {} from offset= {}  fetchCount = {}" ,user,offset, fetchCount);
+                            logger.info("reading notification for user = {} from offset= {}  with fetchCount = {}" ,user,offset, fetchCount);
                             for (Activity a : stream.getActivities(offset, fetchCount, filter)) {
                                 readCount++;
                                 if (a != null) {
                                     jsonWriter.value(a.toJSON());
                                 }
                             }
-                            logger.info("read successfully from offset= " + offset + " fetchCount = " + fetchCount + " for user = " + user);
+                            logger.info("read successfully from offset= {} with fetchCount = {} for user = {}" ,offset,fetchCount,user);
                         }
                         index++;
                     } while (readCount.compareTo(fetchCount) == 0);
                 }catch(Exception e){
-                    logger.error("error occured while read notification for user = " + user);
+                    logger.error("error occured while read notification for user = " + user,e);
                 }
             }
             jsonWriter.endArray() ;
