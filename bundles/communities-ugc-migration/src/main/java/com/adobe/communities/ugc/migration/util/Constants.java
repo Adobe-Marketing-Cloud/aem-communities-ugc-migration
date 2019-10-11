@@ -7,7 +7,6 @@ public class Constants {
     public static final String OBJECT_ID = "objectid_s" ;
     public static final String TARGET = "target" ;
     public static final String OBJECT = "object" ;
-
     public static final String ID = "id";
 
 
@@ -23,6 +22,7 @@ public class Constants {
     public static final String Referer = "Referer";
     public static final String URL = "url";
     public static final String LATESTACTIVITYPATH_S = "latestActivityPath_s" ;
+    public static final String CONTENT = "/content/";
 
 
     public static final String ENTITY_URL = "entity_url";

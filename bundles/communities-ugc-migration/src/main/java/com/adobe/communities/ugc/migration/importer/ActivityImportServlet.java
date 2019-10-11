@@ -53,19 +53,15 @@ public class ActivityImportServlet extends UGCImport {
         final int start  = startParam !=null ?Integer.parseInt(startParam.getString()):0;
 
         JSONObject json ;
-        int importCount = 0;
-
         try {
             json = new JSONObject(jsonBody);
             JSONArray activities = json.optJSONArray(Constants.ACTIVITIES) != null
-                                    ? json.optJSONArray(Constants.ACTIVITIES)
-                                     : new JSONArray();
+                    ? json.optJSONArray(Constants.ACTIVITIES)
+                    : new JSONArray();
 
-            importCount = importUGC(activities,streamProvider, activityManager, idMap, start);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }finally{
-            logger.info("Activity import metrics[Start: {}, end: {}, imported: {}]", start, (start+ importCount), importCount);
+            importUGC(activities,streamProvider, activityManager, idMap, start);
+        } catch (Exception e) {
+            logger.error("Error during activity import", e);
         }
     }
 

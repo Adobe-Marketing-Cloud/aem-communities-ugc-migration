@@ -4,6 +4,7 @@ import com.adobe.communities.ugc.migration.util.Constants;
 import com.adobe.cq.social.activitystreams.api.SocialActivityManager;
 import com.adobe.cq.social.activitystreams.listener.api.ActivityStreamProvider;
 import com.adobe.granite.activitystreams.Activity;
+import com.day.cq.activitystreams.api.ActivityException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.sling.api.request.RequestParameter;
@@ -19,8 +20,8 @@ import java.io.DataInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
-
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 
 public abstract class  UGCImport extends SlingAllMethodsServlet {
@@ -42,6 +43,7 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
 
                 String newId = objectNewMapping.get(Constants.NEW_ID);
                 String newUrl = objectNewMapping.get(Constants.ENTITY_URL);
+                String referer = objectNewMapping.get(Constants.REFERER);
 
                 if(StringUtils.isNotBlank(newId)){
                     jsonObject.put(Constants.OBJECT_ID, newId) ;
@@ -52,10 +54,15 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                     }
                 }
 
+
                 if(StringUtils.isNotBlank(newUrl)) {
-                    objectMap.put(Constants.URL, newUrl);
+                    objectMap.put(Constants.URL, findString(newUrl, Constants.CONTENT));
                 }
 
+                if(StringUtils.isNotBlank(referer)){
+                    objectMap.put(Constants.REFERER, referer);
+                    objectMap.put(Constants.Referer, referer);
+                }
 
                 String oldTargetId = targetMap.optString(Constants.ID);
                 Map<String,String>  targetNewMapping = getNewMapping(idMap, oldTargetId);
@@ -68,7 +75,7 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                 }
 
                 if(StringUtils.isNotBlank(targetUrl)) {
-                    targetMap.put(Constants.URL, targetUrl);
+                    targetMap.put(Constants.URL, findString(targetUrl, Constants.CONTENT));
                 }
 
                 jsonObject.put(Constants.OBJECT,objectMap) ;
@@ -145,7 +152,7 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
         return idMap;
     }
 
-    int importUGC(JSONArray activities, ActivityStreamProvider streamProvider, SocialActivityManager activityManager, Map<String,Map<String,String>> idMap, int start) {
+    void importUGC(JSONArray activities, ActivityStreamProvider streamProvider, SocialActivityManager activityManager, Map<String,Map<String,String>> idMap, int start) {
        int  toStart = start;
        try {
            for (; toStart < activities.length(); toStart++) {
@@ -160,10 +167,10 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                    }
                }
            }
-       } catch (JSONException e) {
-           logger.error("error occurred while importing ugc ",e);
+       } catch (Exception e) {
+           logger.info("Activity import metrics[Start: {}, end: {}, imported: {}]", start, toStart, (toStart - start));
+           throw new ActivityException("error during import", e);
        }
-          return (toStart - start);
 
    }
 
@@ -171,5 +178,13 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
        //<id, url, referer>
        Map<String, String> map = idMap.get(key);
        return map != null ? map:new HashMap<String, String>();
+   }
+
+   private String findString(String str, String pattern){
+        int index = str.indexOf(pattern);
+        if(index != -1){
+            str = str.substring(index);
+        }
+        return str;
    }
 }
