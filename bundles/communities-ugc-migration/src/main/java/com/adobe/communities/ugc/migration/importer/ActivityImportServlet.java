@@ -16,7 +16,6 @@ import org.apache.sling.commons.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Map;
 
 @Component(label = "UGC Migration Activity Importer",
@@ -44,7 +43,7 @@ public class ActivityImportServlet extends UGCImport {
 
         //read meta data
         RequestParameter metaFileParam = paramMap.getValue(Constants.ID_MAPPING_FILE);
-        Map<String, List<String>> idMap = loadMetaInfo(metaFileParam);
+        Map<String, Map<String, String>> idMap = loadMetaInfo(metaFileParam);
 
         //read exported data
         RequestParameter dataFile = paramMap.getValue(Constants.DATA_FILE);
