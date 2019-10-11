@@ -4,7 +4,7 @@ import com.adobe.communities.ugc.migration.util.Constants;
 import com.adobe.cq.social.activitystreams.api.SocialActivityManager;
 import com.adobe.cq.social.activitystreams.listener.api.ActivityStreamProvider;
 import com.adobe.granite.activitystreams.Activity;
-import com.day.cq.activitystreams.api.ActivityException;
+import com.adobe.granite.activitystreams.ActivityException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.sling.api.request.RequestParameter;
@@ -12,6 +12,7 @@ import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.commons.json.JSONArray;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.JSONObject;
+import com.adobe.granite.activitystreams.ActivityException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -168,8 +169,9 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                }
            }
        } catch (Exception e) {
-           logger.info("Activity import metrics[Start: {}, end: {}, imported: {}]", start, toStart, (toStart - start));
            throw new ActivityException("error during import", e);
+       } finally {
+           logger.info("Activity import metrics[Start: {}, end: {}, imported: {}]", start, toStart, (toStart - start));
        }
 
    }

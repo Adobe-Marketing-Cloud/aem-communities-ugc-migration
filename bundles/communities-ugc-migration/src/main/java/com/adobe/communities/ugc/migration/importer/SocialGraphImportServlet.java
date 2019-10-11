@@ -11,22 +11,16 @@
  **************************************************************************/
 package com.adobe.communities.ugc.migration.importer;
 
-import java.io.*;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-
-import javax.jcr.RepositoryException;
-import javax.servlet.ServletException;
-
 import com.adobe.communities.ugc.migration.util.Constants;
+import com.adobe.cq.social.graph.Vertex;
+import com.adobe.cq.social.graph.client.api.Following;
+import com.adobe.cq.social.scf.SocialComponentFactory;
+import com.adobe.cq.social.scf.SocialComponentFactoryManager;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import org.apache.commons.lang.StringUtils;
-import org.apache.felix.scr.annotations.Component;
-import org.apache.felix.scr.annotations.Properties;
-import org.apache.felix.scr.annotations.Property;
-import org.apache.felix.scr.annotations.Reference;
-import org.apache.felix.scr.annotations.Service;
+import org.apache.felix.scr.annotations.*;
 import org.apache.jackrabbit.api.security.user.User;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
@@ -35,18 +29,14 @@ import org.apache.sling.api.request.RequestParameterMap;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
 import org.apache.sling.api.resource.ResourceResolverFactory;
-import org.apache.sling.api.servlets.SlingAllMethodsServlet;
-
-import com.adobe.cq.social.graph.Edge;
-import com.adobe.cq.social.graph.Vertex;
-import com.adobe.cq.social.graph.client.api.Following;
-import com.adobe.cq.social.scf.SocialComponentFactory;
-import com.adobe.cq.social.scf.SocialComponentFactoryManager;
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.servlet.ServletException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 @Component(label = "UGC Migration Social Graph Importer",
         description = "Accepts a json file containing social graph data and applies it to stored profiles",
