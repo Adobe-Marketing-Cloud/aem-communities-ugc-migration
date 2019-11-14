@@ -207,7 +207,7 @@ public class SocialGraphExportServlet extends SlingSafeMethodsServlet {
             RelationshipRunner relationshipRunner = new RelationshipRunner(resourceResolver, userPath, relType, typeS, writer, graph, logger);
 
             threadPoolExecutor.submit(relationshipRunner);
-            //logger.info("size " +taskList.size()) ;
+            logger.debug("size " +taskList.size()) ;
         }
         while(taskList.isEmpty() == false){
             try {
