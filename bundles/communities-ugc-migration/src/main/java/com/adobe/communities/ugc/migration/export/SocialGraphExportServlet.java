@@ -224,7 +224,7 @@ public class SocialGraphExportServlet extends SlingSafeMethodsServlet {
         LinkedBlockingQueue<Runnable> taskList = new LinkedBlockingQueue<Runnable>() ;
         ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(
                 5,
-                5,
+                10,
                 0L,
                 TimeUnit.MILLISECONDS,
                 taskList);
