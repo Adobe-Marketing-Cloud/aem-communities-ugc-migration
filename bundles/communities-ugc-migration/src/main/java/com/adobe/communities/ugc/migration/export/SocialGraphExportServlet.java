@@ -200,7 +200,7 @@ public class SocialGraphExportServlet extends SlingSafeMethodsServlet {
         ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(
                 5,
                 10,
-                0L,
+                10L,
                 TimeUnit.MILLISECONDS,
                 taskList);
         for (String userPath : usersPathList) {
