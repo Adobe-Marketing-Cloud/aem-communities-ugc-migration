@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -94,7 +95,10 @@ public class SocialGraphImportServlet extends  UGCImport {
             final JsonParser jsonParser = new JsonFactory().createParser(inputStream);
             JsonToken token = jsonParser.nextToken(); // get the first token
             if (token.equals(JsonToken.START_OBJECT)) {
+                Long startTime = Calendar.getInstance().getTimeInMillis() ;
                 importFile(jsonParser, request, relType, typeS);
+                Long endTime = Calendar.getInstance().getTimeInMillis() ;
+                logger.info("time taken = " + (endTime - startTime));
             } else {
                 throw new ServletException("Expected a start object token, got " + token);
             }
@@ -118,6 +122,7 @@ public class SocialGraphImportServlet extends  UGCImport {
             }
             token = jsonParser.nextToken();
             final Resource tmpParent = request.getResourceResolver().getResource("/tmp");
+            User user = UGCImportHelper.getUser(userId, request.getResourceResolver());
             while (!token.equals(JsonToken.END_ARRAY)) {
                 String followedId = jsonParser.getValueAsString() ;
                 Map<String,String> valueMap = keyValueMap.get(jsonParser.getValueAsString()) ;
@@ -129,7 +134,6 @@ public class SocialGraphImportServlet extends  UGCImport {
                 props.put("resourceType", Following.RESOURCE_TYPE);
                 props.put("userId", userId);
                 props.put("followedId", followedId);
-                User user = UGCImportHelper.getUser(userId, request.getResourceResolver());
                 if (user != null) {
                     if(relType.equals("USER")){
                         User followedUser = UGCImportHelper.getUser(followedId, request.getResourceResolver());
