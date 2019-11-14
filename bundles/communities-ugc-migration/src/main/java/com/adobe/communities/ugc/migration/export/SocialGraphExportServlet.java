@@ -352,14 +352,14 @@ public class SocialGraphExportServlet extends SlingSafeMethodsServlet {
         for (NodeIterator i = query.execute().getNodes(); i.hasNext();) {
             Node node = i.nextNode();
             String usrPath = node.getPath();
-           /* if(!users.contains(node.getProperty("rep:principalName").getString())
+            if(!users.contains(node.getProperty("rep:principalName").getString())
                     && !usrPath.startsWith("/home/users/system")
                     && !usrPath.startsWith("/home/users/geometrixx")
                     && !usrPath.startsWith("/home/users/mac/")
                     && !usrPath.startsWith("/home/users/media/")
-                    && !usrPath.startsWith("/home/users/we-retail/")){*/
+                    && !usrPath.startsWith("/home/users/we-retail/")){
                 paths.add(usrPath);
-           // }
+           }
         }
         return paths;
     }
