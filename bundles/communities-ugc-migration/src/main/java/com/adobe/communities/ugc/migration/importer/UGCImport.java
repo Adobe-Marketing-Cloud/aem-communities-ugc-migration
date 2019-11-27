@@ -129,12 +129,15 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                     String values[] = keyValues[1].split(",") ;
 
                     Map<String,String> valuesMap = new HashMap<String, String>()  ;
-                    if(values.length >= 2) {
-                        valuesMap.put(Constants.NEW_ID, values[0]);
-                        valuesMap.put(Constants.ENTITY_URL, values[1]);
-                        valuesMap.put(Constants.REFERER, values[2]);
-                        idMap.put(keyValues[0], valuesMap);
+                   for(String value : values){
+                       if(StringUtils.isNotBlank(value)) {
+                           String stringValues[] = value.split(":");
+                           if(stringValues.length == 2) {
+                               valuesMap.put(stringValues[0], stringValues[1]);
+                           }
+                       }
                     }
+                    idMap.put(keyValues[0], valuesMap);
                 }
             }
         }catch(Exception e){

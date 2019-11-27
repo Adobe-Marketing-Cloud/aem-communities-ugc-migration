@@ -12,6 +12,7 @@
 package com.adobe.communities.ugc.migration.export;
 
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
+import com.adobe.communities.ugc.migration.util.Constants;
 import com.adobe.cq.social.commons.Comment;
 import com.adobe.cq.social.srp.SocialResourceProvider;
 import com.adobe.cq.social.ugcbase.SocialUtils;
@@ -122,7 +123,11 @@ public class UGCExportHelper {
         String entityUrl = (String)vm.get("entity_url") ;
         String referer = (String)vm.get("referer") ;
         if(socialKey  != null && id != null && socialKey.equalsIgnoreCase(id) == false){
-            GenericExportServlet.keyValueMap.put(id,socialKey +"," + entityUrl+","+referer) ;
+            StringBuffer sb = new StringBuffer() ;
+            sb.append(Constants.NEW_ID+":" + socialKey)
+                    .append(",").append(Constants.ENTITY_URL+":"+entityUrl)
+                    .append(",").append(Constants.REFERER+":"+referer) ;
+            GenericExportServlet.keyValueMap.put(id,sb.toString()) ;
         }
 
         for (final Map.Entry<String, Object> prop : vm.entrySet()) {
@@ -295,7 +300,11 @@ public class UGCExportHelper {
         String entityUrl = (String)vm.get("entity_url") ;
         String referer = (String)vm.get("referer") ;
         if(socialKey  != null && id != null && socialKey.equalsIgnoreCase(id) == false){
-            GenericExportServlet.keyValueMap.put(id,socialKey +"," + entityUrl+","+referer) ;
+            StringBuffer sb = new StringBuffer() ;
+            sb.append(Constants.NEW_ID+":" + socialKey)
+                    .append(",").append(Constants.ENTITY_URL+":"+entityUrl)
+                    .append(",").append(Constants.REFERER+":"+referer) ;
+            GenericExportServlet.keyValueMap.put(id,sb.toString()) ;
         }
 
         for (final Map.Entry<String, Object> prop : vm.entrySet()) {

@@ -128,7 +128,7 @@ public class SocialGraphImportServlet extends  UGCImport {
                 Map<String,String> valueMap = keyValueMap.get(jsonParser.getValueAsString()) ;
                 if(valueMap != null && StringUtils.isNotBlank(valueMap.get(Constants.NEW_ID))){
                     followedId = valueMap.get(Constants.NEW_ID);
-                    logger.info("using followerID = {} for oldFollowerId= {}" ,followedId,jsonParser.getValueAsString()) ;
+                    logger.debug("using followerID = {} for oldFollowerId= {}" ,followedId,jsonParser.getValueAsString()) ;
                 }
                 final Map<String, Object> props = new HashMap<String, Object>();
                 props.put("resourceType", Following.RESOURCE_TYPE);
