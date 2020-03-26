@@ -13,6 +13,7 @@ package com.adobe.communities.ugc.migration.export;
 
 
 import com.adobe.communities.ugc.migration.ContentTypeDefinitions;
+import com.adobe.communities.ugc.migration.util.Constants;
 import com.adobe.cq.social.calendar.client.api.Calendar;
 import com.adobe.cq.social.commons.CommentSystem;
 import com.adobe.cq.social.commons.comments.api.Comment;
@@ -49,7 +50,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -67,6 +70,8 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
     Logger logger = LoggerFactory.getLogger(this.getClass());
     Writer responseWriter;
     ZipOutputStream zip;
+
+    static Map<String,String> keyValueMap = new HashMap<String, String>() ;
 
     @Override
     protected void doGet(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
@@ -98,6 +103,7 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
             InputStream inStream = null;
             try {
                 exportContent(resource, path);
+                loadKeyValueMapFile() ;
                 IOUtils.closeQuietly(zip);
                 IOUtils.closeQuietly(bos);
                 IOUtils.closeQuietly(fos);
@@ -120,6 +126,9 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
         } finally {
             if (outFile != null) {
                 outFile.delete();
+            }
+            if(keyValueMap != null) {
+                keyValueMap.clear();
             }
         }
     }
@@ -228,5 +237,18 @@ public class GenericExportServlet extends SlingSafeMethodsServlet {
         } catch (final JSONException e) {
             throw new ServletException(e);
         }
+    }
+
+    private void loadKeyValueMapFile() throws IOException {
+        if(keyValueMap.isEmpty() == false) {
+            responseWriter = new OutputStreamWriter(zip);
+            zip.putNextEntry(new ZipEntry("key.txt"));
+            for (Map.Entry<String, String> entry : keyValueMap.entrySet()) {
+                responseWriter.append(entry.getKey() + Constants.KEY_SPLITTER + entry.getValue() + "\n");
+            }
+            responseWriter.flush();
+            zip.closeEntry();
+        }
+
     }
 }

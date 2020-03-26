@@ -40,18 +40,11 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.felix.scr.annotations.Reference;
-import org.apache.jackrabbit.api.security.user.Authorizable;
-import org.apache.jackrabbit.api.security.user.Group;
 import org.apache.jackrabbit.api.security.user.User;
 import org.apache.jackrabbit.api.security.user.UserManager;
 import org.apache.jackrabbit.vault.util.MimeTypes;
 import org.apache.sling.api.SlingHttpServletRequest;
-import org.apache.sling.api.resource.ModifiableValueMap;
-import org.apache.sling.api.resource.ModifyingResourceProvider;
-import org.apache.sling.api.resource.PersistenceException;
-import org.apache.sling.api.resource.Resource;
-import org.apache.sling.api.resource.ResourceResolver;
-import org.apache.sling.api.resource.ResourceResolverFactory;
+import org.apache.sling.api.resource.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,17 +57,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLDecoder;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.TimeZone;
+import java.util.*;
 
 public class UGCImportHelper {
     private static final Logger LOG = LoggerFactory.getLogger(UGCImportHelper.class);
@@ -286,14 +269,8 @@ public class UGCImportHelper {
                 }
                 if (tallyResource == null) {
                     properties.put("sling:resourceType", VotingSocialComponent.VOTING_RESOURCE_TYPE);
-                    properties.put("social:parentid", post.getPath());
-                    tallyResource = resolver.create(post, "voting", properties);
-                    try {
-                        resolver.commit();
-                    } catch (Exception e) {
-                        // ignoring exception to let the rest of the file get imported
-                        LOG.error("Could not create vote {} on post {}", tallyResource, post);
-                    }
+                    tallyResource = srp.create(resolver, post.getPath() + "/voting", properties);
+                    srp.commit(resolver);
                     properties.remove("sling:resourceType");
                 }
             }
