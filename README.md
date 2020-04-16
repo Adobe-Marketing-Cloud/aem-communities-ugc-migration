@@ -121,10 +121,9 @@ Example import command:
 curl -i -u"admin:admin" -X POST -F"file=@/Users/sample/Downloads/export/en/community/hiking/calendar/jcr:content.json" http://localhost:4503/services/social/ugc/import?path=/content/geometrixx-outdoors/en/community/hiking/calendar/jcr:content/par/calendar
 
 # Create Mapping file
-1. Create **key.txt** file
-   - key.txt file is required for importing Activities, Notifications and social graphs. It contains mapping of old vs new ids for 
-     different resources.
-2. After importing ugc, again export data using the [import servlet with UI](#Importing-UGC-into-6\.1\+-using-the-import-servlet-with-UI), this will download zip archive containing all the UGC at or below the root node path you provided along with **key.txt** file.
+1. Mapping file is required for importing Activities, Notifications and social graphs. It contains mapping of old vs new ids for 
+   different resources.
+2. After importing ugc, again export data using the [import servlet with UI](#Importing-UGC-into-6-1-+-using-the-import-servlet-with-UI), this will download zip archive containing all the UGC at or below the root node path you provided along with **key.txt** file.
 3. Each exported zips contains a key.txt files, Merge all these key.txt file into a single file.
 4. In UNIX Merge all file using command, cat key1.txt key2.txt key3.txt >> key.txt
 
