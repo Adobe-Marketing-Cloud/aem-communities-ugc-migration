@@ -75,7 +75,7 @@ b. From 6.4 and higher version, migration of below elements is also supported.
 1. Activity Export: http://hostname:port/services/social/activity/export - this will trigger a file download(activities.json) containing all the activities.
 2. Notification Export: http://hostname:port/services/social/notification/export - this will trigger a file download(notifications.json) containing all the notifications
 
-# Export Social-graphs
+# Export Social-graphs from AEM communitites 6.4+
 1. Export user-activity relation(User following another user activities)
    http://hostname:port/services/social/graph/content/export?path=/home/users&typeS=following&relType=USER&fileName=userActivities
    - As an output **userActivities.json** file will be downloaded.
@@ -146,7 +146,7 @@ curl -i -u"admin:admin" -X POST -F"file=@/Users/sample/Downloads/export/en/commu
   
 Note: Once Activity and Notifications are imported, reset `set to disable Stream Providers' property under **AEM SocialEvent Handler** configuration.
 
-# Import Social Graph using curl command
+# Import Social Graph using curl command from AEM communitites 6.4+
 1. Import user-activity relation
    curl -i -u"admin:admin" -X POST 'http://hostname:port/services/social/graph/content/import?relType=USER&typeS= following' -F file=@/<    absolute_path_to>/userActivities.json -F idMapping=@/<absolute_path_to>/key.txt
 2. Import user-notification relation
