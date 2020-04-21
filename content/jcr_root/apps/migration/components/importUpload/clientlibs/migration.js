@@ -89,6 +89,16 @@
             return false;
         });
 
+        //when file will be selected and it is different from the previously selected.
+         $("form.scf-js-file-upload-form input.coral-FileUpload-input").change(function(event) {
+               console.log(event.target.value);
+               var files = event.target.files;
+               if(files && files.length > 0){
+                $("form.scf-js-file-upload-form input.coral-Form-field").val(event.target.files[0].name);
+                $("form.scf-js-file-upload-form input.coral-Form-field").disabled = true
+                }
+        })
+
         // second button imports ugc extracted from of the files extracted from a zip archive and stores it in a
         // specified ugc node
         $("form.scf-js-file-selection-form button.coral-Button--primary").click(function(event) {
