@@ -95,7 +95,7 @@
                var files = event.target.files;
                if(files && files.length > 0){
                 $("form.scf-js-file-upload-form input.coral-Form-field").val(event.target.files[0].name);
-                $("form.scf-js-file-upload-form input.coral-Form-field").disabled = true
+                //$("form.scf-js-file-upload-form input.coral-Form-field").prop('disabled', true);
                 }
         })
 
