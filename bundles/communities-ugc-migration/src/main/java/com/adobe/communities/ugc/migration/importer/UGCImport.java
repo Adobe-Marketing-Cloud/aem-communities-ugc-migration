@@ -7,7 +7,6 @@ import com.adobe.cq.social.activitystreams.listener.api.ActivityStreamProvider;
 import com.adobe.cq.social.notifications.api.NotificationConstants;
 import com.adobe.cq.social.notifications.api.Status;
 import com.adobe.cq.social.notifications.client.api.SocialNotification;
-import com.adobe.cq.social.notifications.impl.NotificationsActivityStreamProvider;
 import com.adobe.granite.activitystreams.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -337,7 +336,7 @@ public abstract class  UGCImport extends SlingAllMethodsServlet {
                                            /* ActivityStreamUtils.prepareStreamAcl(resolver, socialUtils, toNotify);
                                             ActivityStreamUtils.getStream(activityManager, resolver, toNotify, true);*/
             final ActivityStream stream =
-                    activityManager.getStream(resolver, authorizable, NotificationsActivityStreamProvider.DEFAULT_USER_ACTIVITIES_STREAM_NAME, true);
+                    activityManager.getStream(resolver, authorizable, Constants.DEFAULT_USER_NOTIFICATION_STREAM_NAME, true);
             if (stream != null) {
                 // Add notification extra property into the activity
                 MutableActivity mutableActivity;

@@ -45,4 +45,6 @@ public class Constants {
     public static final String NOTIFICATION = "Notification";
     public static final String SLING_RESOURCETYPE_PROPERTY = "sling:resourceType";
 
+    public static final String DEFAULT_USER_NOTIFICATION_STREAM_NAME = "notifications";
+
 }
